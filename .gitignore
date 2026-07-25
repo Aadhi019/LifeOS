@@ -1,0 +1,26 @@
+# Environments and credentials
+venv/
+.env
+lifeos/app/token.json
+lifeos/app/credentials.json
+
+# Local mock database files
+lifeos/app/mock_calendar.json
+lifeos/app/mock_emails.json
+
+# VS Code and temporary files
+.vscode/
+test_gemini.py
+test_models.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node.js / Frontend
+**/node_modules/
+**/dist/
+.eslintcache
+.oxlintrc.json
