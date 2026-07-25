@@ -93,7 +93,7 @@ class MockLLM:
             travel_date = date_match.group(1) if date_match else "2026-07-31"
             
             return AIMessage(content=json.dumps({
-                "to": "balaaadhityaa@gmail.com",
+                "to": "me",
                 "subject": f"Itinerary Summary: Trip to {city} on {travel_date}",
                 "body": f"Here is your completed itinerary for {city} on {travel_date}. Safe travels!"
             }))
@@ -324,7 +324,7 @@ def email_agent_node(state: AgentState) -> Dict[str, Any]:
     
     Generate a JSON object containing:
     {{
-      "to": "balaaadhityaa@gmail.com",
+      "to": "me",
       "subject": "Itinerary Summary: Trip to {city} on {travel_date}",
       "body": "Provide a well-structured summary of weather, packing details, estimated finance, and calendar reminder."
     }}
