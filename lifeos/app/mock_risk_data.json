@@ -1,0 +1,52 @@
+{
+  "Paris": {
+    "traffic": "High congestion due to tourist season and central road maintenance.",
+    "holidays": "Bastille Day preparations starting, causing street closures around Champs-Élysées.",
+    "political_events": "Moderate strike probability for public transit services next week.",
+    "safety": "Generally safe. Watch out for pickpockets in crowded tourist areas.",
+    "medical_alerts": "No active medical warnings. standard water quality.",
+    "disasters": "None",
+    "disruption_prob": 15,
+    "crowd_density": 85
+  },
+  "London": {
+    "traffic": "Typical rush-hour delays in Central London, congestion charge zones active.",
+    "holidays": "Summer Bank Holiday upcoming, expect retail crowd surges.",
+    "political_events": "Peaceful rallies scheduled near Parliament Square.",
+    "safety": "High safety index. Standard urban awareness recommended.",
+    "medical_alerts": "No active medical warnings.",
+    "disasters": "None",
+    "disruption_prob": 12,
+    "crowd_density": 80
+  },
+  "Bangalore": {
+    "traffic": "Very high delays expected near Silk Board, Outer Ring Road, and Whitefield.",
+    "holidays": "Local festival coming up, expect market areas to be highly crowded.",
+    "political_events": "None planned.",
+    "safety": "Safe city. Exercise standard caution with late-night travel in isolated areas.",
+    "medical_alerts": "Slight increase in seasonal dengue cases; mosquito repellent advised.",
+    "disasters": "None",
+    "disruption_prob": 8,
+    "crowd_density": 75
+  },
+  "Mumbai": {
+    "traffic": "Severe delays on Western Express Highway and near SCLR due to water logging or metro work.",
+    "holidays": "Ganesh Chaturthi preparations, massive crowd surges near Lalbaug and beaches.",
+    "political_events": "None planned.",
+    "safety": "Extremely safe for solo travelers. Be cautious around local trains during peak hours.",
+    "medical_alerts": "Monsoon illnesses (malaria, leptospirosis) alert. Drink only bottled water.",
+    "disasters": "Heavy rain alert / local flooding in low-lying areas.",
+    "disruption_prob": 25,
+    "crowd_density": 95
+  },
+  "Chennai": {
+    "traffic": "Moderate traffic. Congestion around T-Nagar shopping zones and Chennai Central station.",
+    "holidays": "None.",
+    "political_events": "None planned.",
+    "safety": "Very safe. Culturally conservative, standard precautions apply.",
+    "medical_alerts": "No active medical warnings. Hydrate well due to heat.",
+    "disasters": "High humidity and temperature warnings.",
+    "disruption_prob": 10,
+    "crowd_density": 70
+  }
+}

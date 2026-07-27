@@ -11,6 +11,13 @@ from lifeos.app.config import GEMINI_API_KEY
 from lifeos.app.agents.state import AgentState
 from lifeos.app.tools.weather import get_weather_forecast
 
+from lifeos.app.agents.flight_agent import process as flight_agent_node
+from lifeos.app.agents.hotel_agent import process as hotel_agent_node
+from lifeos.app.agents.budget_agent import process as budget_agent_node
+from lifeos.app.agents.risk_agent import process as risk_agent_node
+from lifeos.app.agents.memory_agent import process as memory_agent_node
+from lifeos.app.agents.calendar_conflict_agent import process as calendar_conflict_node
+
 class MockLLM:
     def invoke(self, messages):
         prompt = ""
@@ -150,22 +157,74 @@ def extract_json(text: Any) -> Dict[str, Any]:
 def supervisor_node(state: AgentState) -> Dict[str, Any]:
     """
     Supervisor router node. Inspects the state of agent_outputs and routes to the next agent.
+    Includes skip heuristics for local travel, single-day visits, and skipped calendar scheduling.
     """
-    outputs = state.get("agent_outputs", {})
+    outputs = state.get("agent_outputs", {}).copy()
+    user_intent = state.get("user_intent", "").lower()
     
-    # Simple logical routing
-    if "travel" not in outputs:
-        next_agent = "travel_agent"
-    elif "calendar" not in outputs:
-        next_agent = "calendar_agent"
-    elif "email" not in outputs:
-        next_agent = "email_agent"
-    else:
-        next_agent = "approval"
-        
-    return {
-        "active_agent": next_agent
-    }
+    while True:
+        # 1. Travel Agent
+        if "travel" not in outputs:
+            return {"agent_outputs": outputs, "active_agent": "travel_agent"}
+            
+        # 2. Flight Search Agent
+        if "flights" not in outputs:
+            travel_info = outputs.get("travel", {})
+            city = travel_info.get("city", "").lower()
+            home_city = "bangalore"
+            memory_info = outputs.get("memory", {})
+            if memory_info:
+                home_city = memory_info.get("home_city", "bangalore").lower()
+                
+            is_local = (city == home_city) or any(k in user_intent for k in ["local", "drive", "cab", "road trip", "car", "train"])
+            if is_local:
+                outputs["flights"] = {"skipped": True, "reason": "Local travel does not require flight bookings."}
+                continue
+            return {"agent_outputs": outputs, "active_agent": "flight_agent"}
+            
+        # 3. Hotel Recommendation Agent
+        if "hotels" not in outputs:
+            is_single_day = any(k in user_intent for k in ["single day", "one day", "same day", "back today", "day trip", "single-day"])
+            if is_single_day:
+                outputs["hotels"] = {"skipped": True, "reason": "Single-day trip does not require hotel bookings."}
+                continue
+            return {"agent_outputs": outputs, "active_agent": "hotel_agent"}
+            
+        # 4. Budget Optimization Agent
+        if "optimized_budget" not in outputs:
+            return {"agent_outputs": outputs, "active_agent": "budget_agent"}
+            
+        # 5. Risk Analysis Agent
+        if "risk" not in outputs:
+            return {"agent_outputs": outputs, "active_agent": "risk_agent"}
+            
+        # 6. Memory Agent
+        if "memory" not in outputs:
+            return {"agent_outputs": outputs, "active_agent": "memory_agent"}
+            
+        # 7. Calendar Conflict Agent
+        if "calendar_conflicts" not in outputs:
+            no_calendar = any(k in user_intent for k in ["no calendar", "don't schedule", "dont schedule", "skip calendar"])
+            if no_calendar:
+                outputs["calendar_conflicts"] = {"skipped": True, "reason": "No calendar event requested."}
+                outputs["calendar"] = {"skipped": True, "reason": "No calendar event requested."}
+                continue
+            return {"agent_outputs": outputs, "active_agent": "calendar_conflict_agent"}
+            
+        # 8. Calendar Agent
+        if "calendar" not in outputs:
+            conflict_info = outputs.get("calendar_conflicts", {})
+            if conflict_info.get("skipped"):
+                outputs["calendar"] = {"skipped": True, "reason": "No calendar event requested."}
+                continue
+            return {"agent_outputs": outputs, "active_agent": "calendar_agent"}
+            
+        # 9. Email Agent
+        if "email" not in outputs:
+            return {"agent_outputs": outputs, "active_agent": "email_agent"}
+            
+        # 10. Approval
+        return {"agent_outputs": outputs, "active_agent": "approval"}
 
 def travel_agent_node(state: AgentState) -> Dict[str, Any]:
     """
@@ -352,18 +411,47 @@ def approval_waiting_node(state: AgentState) -> Dict[str, Any]:
 
 # --- GRAPH BUILDER ---
 
-def route_next(state: AgentState) -> Literal["travel_agent", "calendar_agent", "email_agent", "approval", "end"]:
+def route_next(state: AgentState) -> Literal[
+    "travel_agent", 
+    "flight_agent", 
+    "hotel_agent", 
+    "budget_agent", 
+    "risk_agent", 
+    "memory_agent", 
+    "calendar_conflict_agent", 
+    "calendar_agent", 
+    "email_agent", 
+    "approval", 
+    "end"
+]:
     active = state.get("active_agent")
-    if active in ["travel_agent", "calendar_agent", "email_agent", "approval"]:
+    if active in [
+        "travel_agent", 
+        "flight_agent", 
+        "hotel_agent", 
+        "budget_agent", 
+        "risk_agent", 
+        "memory_agent", 
+        "calendar_conflict_agent", 
+        "calendar_agent", 
+        "email_agent", 
+        "approval"
+    ]:
         return active
     return "end"
 
 def get_agent_graph():
-    workflow = StateGraph(AgentState)
+    workflow = StateGraph(AgentState)  # type: ignore[bad-specialization]
     
     # Add Nodes
     workflow.add_node("supervisor", supervisor_node)
     workflow.add_node("travel_agent", travel_agent_node)
+    workflow.add_node("flight_agent", flight_agent_node)
+    workflow.add_node("hotel_agent", hotel_agent_node)
+    workflow.add_node("budget_agent", budget_agent_node)
+    workflow.add_node("risk_agent", risk_agent_node)
+    workflow.add_node("memory_agent", memory_agent_node)
+    workflow.add_node("calendar_conflict_agent", calendar_conflict_node)
     workflow.add_node("calendar_agent", calendar_agent_node)
     workflow.add_node("email_agent", email_agent_node)
     workflow.add_node("approval", approval_waiting_node)
@@ -376,6 +464,12 @@ def get_agent_graph():
         route_next,
         {
             "travel_agent": "travel_agent",
+            "flight_agent": "flight_agent",
+            "hotel_agent": "hotel_agent",
+            "budget_agent": "budget_agent",
+            "risk_agent": "risk_agent",
+            "memory_agent": "memory_agent",
+            "calendar_conflict_agent": "calendar_conflict_agent",
             "calendar_agent": "calendar_agent",
             "email_agent": "email_agent",
             "approval": "approval",
@@ -384,6 +478,12 @@ def get_agent_graph():
     )
     
     workflow.add_edge("travel_agent", "supervisor")
+    workflow.add_edge("flight_agent", "supervisor")
+    workflow.add_edge("hotel_agent", "supervisor")
+    workflow.add_edge("budget_agent", "supervisor")
+    workflow.add_edge("risk_agent", "supervisor")
+    workflow.add_edge("memory_agent", "supervisor")
+    workflow.add_edge("calendar_conflict_agent", "supervisor")
     workflow.add_edge("calendar_agent", "supervisor")
     workflow.add_edge("email_agent", "supervisor")
     workflow.add_edge("approval", END)

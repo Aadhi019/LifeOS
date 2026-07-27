@@ -55,12 +55,26 @@ async def chat_endpoint(request: ChatRequest):
         # Serialize messages for JSON response
         serialized_messages = [serialize_message(m) for m in final_state.get("messages", [])]
         
+        outputs = final_state.get("agent_outputs", {})
         return {
             "messages": serialized_messages,
             "user_intent": final_state.get("user_intent"),
             "active_agent": final_state.get("active_agent"),
-            "agent_outputs": final_state.get("agent_outputs"),
-            "requires_approval": final_state.get("requires_approval")
+            "agent_outputs": outputs,
+            "requires_approval": final_state.get("requires_approval"),
+            
+            # Explicit API response requirements
+            "travel": outputs.get("travel"),
+            "weather": outputs.get("travel", {}).get("weather_summary") if outputs.get("travel") else None,
+            "flights": outputs.get("flights"),
+            "hotels": outputs.get("hotels"),
+            "optimized_budget": outputs.get("optimized_budget"),
+            "risk": outputs.get("risk"),
+            "calendar_conflicts": outputs.get("calendar_conflicts"),
+            "recommendations": outputs.get("optimized_budget", {}).get("recommendations", []),
+            "memory": outputs.get("memory"),
+            "email": outputs.get("email"),
+            "approval": final_state.get("requires_approval")
         }
     except ValueError as ve:
         # Treat environment/API key setup errors nicely
@@ -78,7 +92,7 @@ async def confirm_endpoint(request: ConfirmRequest):
         email_result = "No email draft requested."
         
         # 1. Execute Calendar Event Proposal
-        if "calendar" in outputs:
+        if "calendar" in outputs and not outputs.get("calendar", {}).get("skipped"):
             cal = outputs["calendar"]
             calendar_result = create_calendar_event(
                 summary=cal.get("summary", "Trip Event"),
@@ -89,13 +103,19 @@ async def confirm_endpoint(request: ConfirmRequest):
             )
             
         # 2. Execute Email Draft Proposal
-        if "email" in outputs:
+        if "email" in outputs and not outputs.get("email", {}).get("skipped"):
             em = outputs["email"]
             email_result = draft_email(
                 to=em.get("to", "me"),
                 subject=em.get("subject", "Trip Summary"),
                 body=em.get("body", "")
             )
+            
+        # 3. Update memory automatically after confirmation
+        from lifeos.app.agents.memory_agent import update_memory_on_confirmation
+        updated_memory = update_memory_on_confirmation(state)
+        if "agent_outputs" in state:
+            state["agent_outputs"]["memory"] = updated_memory
             
         # Clear the approval flag and active agent
         state["requires_approval"] = False

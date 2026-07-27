@@ -1,0 +1,14 @@
+{
+  "preferred_airline": "IndiGo",
+  "preferred_hotel_type": "Business",
+  "meal": "Vegetarian",
+  "seat": "Window",
+  "budget": "25000",
+  "home_city": "Bangalore",
+  "frequently_visited_cities": [
+    "Bangalore",
+    "Mumbai",
+    "Chennai"
+  ],
+  "travel_style": "Comfort & Efficiency"
+}

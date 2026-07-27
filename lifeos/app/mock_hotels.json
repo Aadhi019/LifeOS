@@ -1,0 +1,202 @@
+[
+  {
+    "city": "Paris",
+    "name": "Hotel de la Seine",
+    "category": "Luxury",
+    "rating": 4.8,
+    "distance": 1.2,
+    "price": 18000,
+    "amenities": ["Wi-Fi", "Pool", "Gym", "Spa", "Breakfast", "Air Conditioning"],
+    "safety_score": 96
+  },
+  {
+    "city": "Paris",
+    "name": "Eiffel View Suites",
+    "category": "Business",
+    "rating": 4.5,
+    "distance": 2.5,
+    "price": 12000,
+    "amenities": ["Wi-Fi", "Conference Room", "Gym", "Breakfast"],
+    "safety_score": 92
+  },
+  {
+    "city": "Paris",
+    "name": "Montmartre Budget Inn",
+    "category": "Budget",
+    "rating": 3.9,
+    "distance": 4.0,
+    "price": 4500,
+    "amenities": ["Wi-Fi", "Breakfast"],
+    "safety_score": 85
+  },
+  {
+    "city": "Paris",
+    "name": "Family Haven Apartments",
+    "category": "Family",
+    "rating": 4.3,
+    "distance": 3.2,
+    "price": 9500,
+    "amenities": ["Wi-Fi", "Kitchen", "Play Area", "Laundry"],
+    "safety_score": 90
+  },
+  {
+    "city": "London",
+    "name": "The Savoy Ritz",
+    "category": "Luxury",
+    "rating": 4.9,
+    "distance": 0.8,
+    "price": 22000,
+    "amenities": ["Wi-Fi", "Pool", "Gym", "Spa", "24/7 Room Service"],
+    "safety_score": 98
+  },
+  {
+    "city": "London",
+    "name": "Paddington Business Lodge",
+    "category": "Business",
+    "rating": 4.4,
+    "distance": 2.1,
+    "price": 14000,
+    "amenities": ["Wi-Fi", "Desk space", "Meeting Room", "Gym"],
+    "safety_score": 94
+  },
+  {
+    "city": "London",
+    "name": "Soho Backpackers Hostel",
+    "category": "Budget",
+    "rating": 3.8,
+    "distance": 1.5,
+    "price": 3500,
+    "amenities": ["Wi-Fi", "Shared Lounge"],
+    "safety_score": 80
+  },
+  {
+    "city": "London",
+    "name": "Kensington Family Suites",
+    "category": "Family",
+    "rating": 4.2,
+    "distance": 3.5,
+    "price": 10500,
+    "amenities": ["Wi-Fi", "Kids Club", "Kitchen", "Breakfast"],
+    "safety_score": 91
+  },
+  {
+    "city": "Bangalore",
+    "name": "The Leela Palace",
+    "category": "Luxury",
+    "rating": 4.9,
+    "distance": 1.5,
+    "price": 15000,
+    "amenities": ["Wi-Fi", "Pool", "Gym", "Spa", "Bar", "Luxury Lounge"],
+    "safety_score": 97
+  },
+  {
+    "city": "Bangalore",
+    "name": "TechPark Residency",
+    "category": "Business",
+    "rating": 4.3,
+    "distance": 0.5,
+    "price": 6000,
+    "amenities": ["Wi-Fi", "Gym", "Workspace", "Breakfast"],
+    "safety_score": 95
+  },
+  {
+    "city": "Bangalore",
+    "name": "Indiranagar Cozy Stay",
+    "category": "Budget",
+    "rating": 4.0,
+    "distance": 2.2,
+    "price": 2200,
+    "amenities": ["Wi-Fi", "Breakfast", "Laundry"],
+    "safety_score": 88
+  },
+  {
+    "city": "Bangalore",
+    "name": "Greenwood Family Resort",
+    "category": "Family",
+    "rating": 4.5,
+    "distance": 6.0,
+    "price": 7500,
+    "amenities": ["Wi-Fi", "Pool", "Kids Play Zone", "Garden"],
+    "safety_score": 93
+  },
+  {
+    "city": "Mumbai",
+    "name": "Taj Mahal Palace",
+    "category": "Luxury",
+    "rating": 4.9,
+    "distance": 0.2,
+    "price": 20000,
+    "amenities": ["Wi-Fi", "Pool", "Gym", "Spa", "Sea View Lounge"],
+    "safety_score": 99
+  },
+  {
+    "city": "Mumbai",
+    "name": "Bandra Executive Hotel",
+    "category": "Business",
+    "rating": 4.4,
+    "distance": 3.0,
+    "price": 8000,
+    "amenities": ["Wi-Fi", "Gym", "Conference Room", "Breakfast"],
+    "safety_score": 94
+  },
+  {
+    "city": "Mumbai",
+    "name": "Gateway Hostel",
+    "category": "Budget",
+    "rating": 3.9,
+    "distance": 1.0,
+    "price": 2500,
+    "amenities": ["Wi-Fi", "AC"],
+    "safety_score": 87
+  },
+  {
+    "city": "Mumbai",
+    "name": "Juhu Family Stay",
+    "category": "Family",
+    "rating": 4.2,
+    "distance": 0.5,
+    "price": 7000,
+    "amenities": ["Wi-Fi", "Beach Access", "Kitchen", "Playroom"],
+    "safety_score": 91
+  },
+  {
+    "city": "Chennai",
+    "name": "Taj Coromandel",
+    "category": "Luxury",
+    "rating": 4.8,
+    "distance": 1.0,
+    "price": 14000,
+    "amenities": ["Wi-Fi", "Pool", "Gym", "Spa", "Multi-cuisine Dining"],
+    "safety_score": 96
+  },
+  {
+    "city": "Chennai",
+    "name": "OMR Business Suites",
+    "category": "Business",
+    "rating": 4.2,
+    "distance": 0.5,
+    "price": 5000,
+    "amenities": ["Wi-Fi", "Gym", "Workspace", "Breakfast"],
+    "safety_score": 93
+  },
+  {
+    "city": "Chennai",
+    "name": "Egmore Budget Inn",
+    "category": "Budget",
+    "rating": 3.8,
+    "distance": 2.5,
+    "price": 1800,
+    "amenities": ["Wi-Fi", "AC"],
+    "safety_score": 86
+  },
+  {
+    "city": "Chennai",
+    "name": "Marina Breeze Family Lodge",
+    "category": "Family",
+    "rating": 4.1,
+    "distance": 1.2,
+    "price": 4800,
+    "amenities": ["Wi-Fi", "Kitchenette", "Play Area"],
+    "safety_score": 89
+  }
+]

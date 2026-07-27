@@ -1,0 +1,123 @@
+[
+  {
+    "origin": "Bangalore",
+    "destination": "Paris",
+    "airline": "Air France",
+    "price": 54000,
+    "duration": 10.5,
+    "departure": "03:45 AM",
+    "arrival": "09:45 AM",
+    "stops": 0,
+    "rating": 4.5
+  },
+  {
+    "origin": "Bangalore",
+    "destination": "Paris",
+    "airline": "Emirates",
+    "price": 42000,
+    "duration": 13.0,
+    "departure": "10:30 AM",
+    "arrival": "09:00 PM",
+    "stops": 1,
+    "rating": 4.8
+  },
+  {
+    "origin": "Bangalore",
+    "destination": "Paris",
+    "airline": "Gulf Air",
+    "price": 31000,
+    "duration": 16.5,
+    "departure": "09:00 PM",
+    "arrival": "11:00 AM",
+    "stops": 2,
+    "rating": 3.7
+  },
+  {
+    "origin": "Bangalore",
+    "destination": "London",
+    "airline": "British Airways",
+    "price": 62000,
+    "duration": 11.0,
+    "departure": "06:30 AM",
+    "arrival": "12:00 PM",
+    "stops": 0,
+    "rating": 4.4
+  },
+  {
+    "origin": "Bangalore",
+    "destination": "London",
+    "airline": "Qatar Airways",
+    "price": 48000,
+    "duration": 14.5,
+    "departure": "04:00 AM",
+    "arrival": "04:00 PM",
+    "stops": 1,
+    "rating": 4.9
+  },
+  {
+    "origin": "Bangalore",
+    "destination": "London",
+    "airline": "Air India",
+    "price": 39000,
+    "duration": 15.0,
+    "departure": "11:15 PM",
+    "arrival": "09:45 AM",
+    "stops": 1,
+    "rating": 3.5
+  },
+  {
+    "origin": "Bangalore",
+    "destination": "Mumbai",
+    "airline": "IndiGo",
+    "price": 4500,
+    "duration": 1.75,
+    "departure": "06:00 AM",
+    "arrival": "07:45 AM",
+    "stops": 0,
+    "rating": 4.2
+  },
+  {
+    "origin": "Bangalore",
+    "destination": "Mumbai",
+    "airline": "Akasa Air",
+    "price": 3800,
+    "duration": 1.75,
+    "departure": "09:30 PM",
+    "arrival": "11:15 PM",
+    "stops": 0,
+    "rating": 4.0
+  },
+  {
+    "origin": "Bangalore",
+    "destination": "Mumbai",
+    "airline": "Air India Express",
+    "price": 3200,
+    "duration": 3.5,
+    "departure": "01:00 PM",
+    "arrival": "04:30 PM",
+    "stops": 1,
+    "rating": 3.6
+  },
+  {
+    "origin": "Bangalore",
+    "destination": "Chennai",
+    "airline": "IndiGo",
+    "price": 3500,
+    "duration": 1.0,
+    "departure": "08:15 AM",
+    "arrival": "09:15 AM",
+    "stops": 0,
+    "rating": 4.1
+  },
+  {
+    "origin": "Bangalore",
+    "destination": "Chennai",
+    "airline": "Air India Express",
+    "price": 2800,
+    "duration": 1.1,
+    "departure": "07:00 PM",
+    "arrival": "08:05 PM",
+    "stops": 0,
+    "rating": 3.8
+  }
+]

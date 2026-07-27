@@ -29,7 +29,7 @@ TOKEN_PATH = os.path.join(APP_DIR, "token.json")
 MOCK_CALENDAR_PATH = os.path.join(APP_DIR, "mock_calendar.json")
 MOCK_EMAILS_PATH = os.path.join(APP_DIR, "mock_emails.json")
 
-def get_google_credentials() -> Optional[Credentials]:
+def get_google_credentials() -> Any:
     """Retrieves or refreshes Google OAuth2 credentials."""
     from lifeos.app.config import USE_MOCK_GOOGLE_SERVICES
     if USE_MOCK_GOOGLE_SERVICES:
@@ -82,7 +82,7 @@ def create_calendar_event(summary: str, start_time: str, end_time: str, descript
     
     if creds:
         try:
-            service = build('calendar', 'v3', credentials=creds)
+            service: Any = build('calendar', 'v3', credentials=creds)
             event = {
                 'summary': summary,
                 'location': location,
@@ -138,7 +138,7 @@ def draft_email(to: str, subject: str, body: str) -> str:
     
     if creds:
         try:
-            service = build('gmail', 'v1', credentials=creds)
+            service: Any = build('gmail', 'v1', credentials=creds)
             message = EmailMessage()
             message.set_content(body)
             message['To'] = to
