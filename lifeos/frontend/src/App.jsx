@@ -160,714 +160,666 @@ export default function App() {
   const requiresApproval = agentState?.requires_approval && !executionResult;
 
   return (
-    <div className="min-h-screen pb-12">
-      {/* Background decoration elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[55vw] h-[55vw] rounded-full bg-indigo-400/10 blur-[130px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[55vw] h-[55vw] rounded-full bg-emerald-400/8 blur-[130px] pointer-events-none" />
-
-      {/* HEADER */}
-      <header className="sticky top-0 z-40 w-full glass border-b border-slate-200/50 py-4 px-6 md:px-12 flex justify-between items-center shadow-sm backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600 shadow-sm">
-            <Sparkles className="h-6 w-6 animate-pulse" />
-          </div>
-          <div>
-            <h1 className="text-xl font-extrabold bg-linear-to-r from-slate-900 via-slate-800 to-indigo-600 bg-clip-text text-transparent">
-              LifeOS
-            </h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-              Personal Chief of Staff
-            </p>
-          </div>
-        </div>
-
-        {/* System Status */}
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-              isLoading || isConfirming ? 'bg-amber-400' : requiresApproval ? 'bg-indigo-400' : 'bg-emerald-400'
-            }`} />
-            <span className={`relative inline-flex rounded-full h-2 w-2 ${
-              isLoading || isConfirming ? 'bg-amber-500' : requiresApproval ? 'bg-indigo-500' : 'bg-emerald-500'
-            }`} />
-          </span>
-          <span className="text-xs font-bold text-slate-700">
-            {statusMessage}
-          </span>
-        </div>
-      </header>
-
-      {/* MAIN CONTAINER */}
-      <main className="max-w-7xl mx-auto px-4 md:px-8 mt-8 space-y-8">
+    <div className="min-h-screen p-4 md:p-8 select-none">
+      {/* Structural double outline vintage-style canvas wrapper */}
+      <div className="w-full border-vintage bg-(--bg-cream) p-4 md:p-8 relative min-h-[90vh]">
         
-        {/* TOP SECTION: Centered Task Orchestrator */}
-        <div className="max-w-3xl mx-auto space-y-6">
-          <div className="glass rounded-3xl p-6 space-y-6 relative overflow-hidden transition-all duration-300 focus-within:shadow-lg focus-within:border-indigo-300">
-            <div className="absolute top-0 right-0 p-3 text-slate-900/5 pointer-events-none">
-              <Lock className="h-24 w-24" />
-            </div>
+        {/* Background decorative vector bursts & doodles */}
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 pointer-events-none opacity-10">
+          <svg className="w-96 h-96 text-(--text-charcoal)" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="0.5">
+            <circle cx="50" cy="50" r="40" />
+            <line x1="10" y1="50" x2="90" y2="50" />
+            <line x1="50" y1="10" x2="50" y2="90" />
+            <circle cx="50" cy="50" r="20" strokeDasharray="2 2" />
+          </svg>
+        </div>
 
-            <div className="text-center">
-              <h2 className="text-xl font-bold text-slate-900 mb-1.5 flex items-center justify-center gap-2">
-                <Sparkles className="h-5 w-5 text-indigo-600" />
-                Task Orchestrator
-              </h2>
-              <p className="text-xs text-slate-555 max-w-md mx-auto">
-                Enter your travel request in natural language. Our agent network will coordinate to fetch weather forecasts, estimate budgets, and draft schedules.
+        {/* HEADER BLOCK (Sectioned with thin lines) */}
+        <header className="border-vintage flex flex-col md:flex-row justify-between items-stretch bg-white relative z-10">
+          {/* Brand/Monogram */}
+          <div className="flex items-center gap-4 p-4 border-vintage-b md:border-vintage-b-0 md:border-vintage-r bg-[#ffffff]">
+            <div className="p-1 border-vintage rounded-none bg-(--color-terracotta) text-white shadow-[1.5px_1.5px_0px_#000]">
+              <svg className="h-8 w-8" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="44" stroke="currentColor" strokeWidth="6" />
+                <path d="M40 30 H48 V60 H65 V67 H40 Z" fill="currentColor" />
+                <circle cx="68" cy="35" r="7" fill="currentColor" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-2xl font-black font-title tracking-tight uppercase">
+                LifeOS
+              </h1>
+              <p className="text-[11px] font-retro-mono font-bold tracking-widest text-(--color-olive) uppercase">
+                Personal Chief of Staff Co.
               </p>
             </div>
-
-            <form onSubmit={handleChatSubmit} className="space-y-4">
-              <div className="relative">
-                <textarea
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder="e.g., I'm travelling to Paris on 2026-08-10"
-                  className="w-full bg-white/70 border rounded-2xl p-4 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 min-h-22.5 placeholder:text-slate-400 resize-none transition-all shadow-inner"
-                  style={{ borderColor: 'rgba(226, 232, 240, 0.8)', color: '#1e293b' }}
-                  disabled={isLoading || isConfirming}
-                />
-                <button
-                  type="submit"
-                  disabled={isLoading || isConfirming || !inputText.trim()}
-                  className="absolute bottom-4 right-4 p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 cursor-pointer shadow-md shadow-indigo-600/25"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-            </form>
-
-            {/* Starter Prompts */}
-            <div className="space-y-2">
-              <div className="text-center">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  Quick Examples
-                </span>
-              </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {starterPrompts.map((prompt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleStarterClick(prompt)}
-                    disabled={isLoading || isConfirming}
-                    className="text-xs bg-white hover:bg-indigo-50/50 border border-slate-200/60 hover:border-indigo-200 text-slate-600 px-3.5 py-1.5 rounded-full transition-all hover:scale-105 cursor-pointer shadow-sm"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Reset Button */}
-            {agentState && (
-              <div className="flex justify-center pt-2">
-                <button
-                  onClick={handleReset}
-                  className="px-6 py-2 bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Clear Current Workflow
-                </button>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {errorMessage && (
-              <div className="bg-red-50/70 border border-red-200/80 rounded-xl p-3 flex gap-2 text-xs text-red-655 shadow-sm max-w-xl mx-auto">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <div>{errorMessage}</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* MIDDLE SECTION: Workflow Pipeline */}
-        {agentState && (
-          <div className="max-w-5xl mx-auto glass rounded-2xl p-4 shadow-sm border border-slate-200/50 flex flex-wrap justify-between items-center gap-4 animate-fade-in">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Agent Pipeline Flow</span>
-            </div>
-            <div className="flex items-center flex-wrap gap-2 text-xs">
-              <span className="font-semibold px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100 shadow-sm">Input</span>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-              
-              {/* Travel */}
-              <span className={`font-semibold px-2 py-0.5 rounded-md border transition-all ${
-                getAgentStatus('travel') === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm' :
-                getAgentStatus('travel') === 'working' ? 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse' :
-                'bg-slate-50 text-slate-400 border-slate-200/60'
-              }`}>Travel</span>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-              
-              {/* Flights */}
-              <span className={`font-semibold px-2 py-0.5 rounded-md border transition-all ${
-                getAgentStatus('flights') === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm' :
-                getAgentStatus('flights') === 'skipped' ? 'bg-slate-100 text-slate-400 border-slate-200/40 line-through' :
-                getAgentStatus('flights') === 'working' ? 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse' :
-                'bg-slate-50 text-slate-400 border-slate-200/60'
-              }`}>Flights</span>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-              
-              {/* Hotels */}
-              <span className={`font-semibold px-2 py-0.5 rounded-md border transition-all ${
-                getAgentStatus('hotels') === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm' :
-                getAgentStatus('hotels') === 'skipped' ? 'bg-slate-100 text-slate-400 border-slate-200/40 line-through' :
-                getAgentStatus('hotels') === 'working' ? 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse' :
-                'bg-slate-50 text-slate-400 border-slate-200/60'
-              }`}>Hotels</span>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-              
-              {/* Budget */}
-              <span className={`font-semibold px-2 py-0.5 rounded-md border transition-all ${
-                getAgentStatus('budget') === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm' :
-                getAgentStatus('budget') === 'working' ? 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse' :
-                'bg-slate-50 text-slate-400 border-slate-200/60'
-              }`}>Budget</span>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-              
-              {/* Risk */}
-              <span className={`font-semibold px-2 py-0.5 rounded-md border transition-all ${
-                getAgentStatus('risk') === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm' :
-                getAgentStatus('risk') === 'working' ? 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse' :
-                'bg-slate-50 text-slate-400 border-slate-200/60'
-              }`}>Risk</span>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-
-              {/* Memory */}
-              <span className={`font-semibold px-2 py-0.5 rounded-md border transition-all ${
-                getAgentStatus('memory') === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm' :
-                getAgentStatus('memory') === 'working' ? 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse' :
-                'bg-slate-50 text-slate-400 border-slate-200/60'
-              }`}>Memory</span>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-
-              {/* Conflicts */}
-              <span className={`font-semibold px-2 py-0.5 rounded-md border transition-all ${
-                getAgentStatus('conflicts') === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm' :
-                getAgentStatus('conflicts') === 'skipped' ? 'bg-slate-100 text-slate-400 border-slate-200/40 line-through' :
-                getAgentStatus('conflicts') === 'working' ? 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse' :
-                'bg-slate-50 text-slate-400 border-slate-200/60'
-              }`}>Conflicts</span>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-              
-              {/* Calendar */}
-              <span className={`font-semibold px-2 py-0.5 rounded-md border transition-all ${
-                getAgentStatus('calendar') === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm' :
-                getAgentStatus('calendar') === 'skipped' ? 'bg-slate-100 text-slate-400 border-slate-200/40 line-through' :
-                getAgentStatus('calendar') === 'working' ? 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse' :
-                'bg-slate-50 text-slate-400 border-slate-200/60'
-              }`}>Calendar</span>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-              
-              {/* Email */}
-              <span className={`font-semibold px-2 py-0.5 rounded-md border transition-all ${
-                getAgentStatus('email') === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm' :
-                getAgentStatus('email') === 'working' ? 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse' :
-                'bg-slate-50 text-slate-400 border-slate-200/60'
-              }`}>Email</span>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-              
-              <span className={`font-semibold px-2 py-0.5 rounded-md border transition-all ${
-                requiresApproval ? 'bg-indigo-50 text-indigo-700 border-indigo-100 animate-pulse' :
-                executionResult ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                'bg-slate-50 text-slate-400 border-slate-200/60'
-              }`}>Execute</span>
-            </div>
-          </div>
-        )}
-
-        {/* BOTTOM SECTION: Responsive 4-Column Agent Dashboard */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              Agent Network Dashboard
-            </h2>
-            <div className="text-xs font-bold text-slate-600 bg-white/80 py-1 px-3 border border-slate-200/60 rounded-full shadow-sm">
-              4 Specialized Agents
-            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Navigation/Status placeholder (Monospace minimalist) */}
+          <div className="grow flex items-center justify-around px-6 py-4 md:py-0 border-vintage-b md:border-vintage-b-0 md:border-vintage-r text-sm font-retro-mono font-bold uppercase tracking-wider text-neutral-500">
+            <span className="text-(--text-charcoal) border-b-2 border-(--color-terracotta) pb-1 cursor-default">Dashboard</span>
+            <span className="hover:text-(--text-charcoal) transition-colors cursor-pointer">Pipeline Flow</span>
+            <span className="hover:text-(--text-charcoal) transition-colors cursor-pointer">Agent logs</span>
+          </div>
+
+          {/* Real-time Status Tracker */}
+          <div className="flex items-center gap-3 p-4 bg-(--bg-cream-dark) font-retro-mono text-sm font-bold border-vintage-b md:border-vintage-b-0">
+            <span className="relative flex h-2 w-2">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                isLoading || isConfirming ? 'bg-(--color-mustard)' : requiresApproval ? 'bg-(--color-terracotta)' : 'bg-(--color-olive)'
+              }`} />
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                isLoading || isConfirming ? 'bg-(--color-mustard)' : requiresApproval ? 'bg-(--color-terracotta)' : 'bg-(--color-olive)'
+              }`} />
+            </span>
+            <span className="uppercase text-(--text-charcoal)">
+              {statusMessage}
+            </span>
+          </div>
+        </header>
+
+        {/* MAIN PANEL CONTENT SPLIT (2/3 Left, 1/3 Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 items-start relative z-10">
+          
+          {/* LEFT PANEL (Main Console, Pipeline & Reports) */}
+          <div className="lg:col-span-2 space-y-8">
             
-            {/* CARD 1: Travel Agent */}
-            <div className="glass rounded-3xl p-6 shadow-md relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-slate-350 flex flex-col min-h-55">
-              <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-indigo-50 border border-indigo-100 rounded-2xl text-indigo-600 shadow-sm">
-                  <Plane className="h-5 w-5" />
-                </div>
-                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                  getAgentStatus('travel') === 'completed' ? 'bg-emerald-50/15 text-emerald-700 border border-emerald-100' :
-                  getAgentStatus('travel') === 'working' ? 'bg-amber-50/15 text-amber-700 border-amber-100 animate-pulse' :
-                  'bg-slate-100 text-slate-500 border border-slate-200'
-                }`}>
-                  {getAgentStatus('travel')}
-                </span>
+            {/* Task Orchestrator Form Panel */}
+            <div className="border-vintage bg-[#ffffff] p-6 relative overflow-hidden">
+              {/* Corner Sienna Burst Illustration */}
+              <div className="absolute top-2 right-4 pointer-events-none opacity-40">
+                <svg className="w-12 h-12 text-(--color-terracotta) animate-pulse" viewBox="0 0 100 100" fill="currentColor">
+                  <path d="M50 0 L55 35 L85 15 L65 45 L100 50 L65 55 L85 85 L55 65 L50 100 L45 65 L15 85 L35 55 L0 50 L35 45 L15 15 L45 35 Z" />
+                </svg>
               </div>
-              
-              <h3 className="font-bold text-slate-800 mb-2">Travel Agent</h3>
-              
-              {outputs.travel ? (
-                <div className="space-y-3 text-xs text-slate-600 grow">
-                  <div className="flex items-center gap-1.5 text-indigo-600 font-bold">
-                    <MapPin className="h-3.5 w-3.5" />
-                    <span>{outputs.travel.city} ({outputs.travel.dates})</span>
+
+              <div className="mb-4">
+                <span className="text-xs font-retro-mono font-bold uppercase tracking-widest text-(--color-terracotta) block mb-1">
+                  FEATURED WORKSPACE
+                </span>
+                <h2 className="text-3xl font-bold font-title text-(--text-charcoal) mb-2">
+                  Plan Your Journey
+                </h2>
+                <p className="text-sm font-body text-neutral-500 leading-relaxed max-w-xl">
+                  Formulate travel instructions below. Our network of specialist agents will resolve weather, allocate budget targets, analyze schedules, and compose correspondence.
+                </p>
+              </div>
+
+              <form onSubmit={handleChatSubmit} className="space-y-4">
+                <div className="relative border-vintage bg-(--bg-cream)">
+                  <textarea
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder="e.g. Travel to Bangalore next Friday, draft the details..."
+                    className="w-full bg-transparent border-0 p-4 pr-12 text-base font-retro-mono focus:outline-none min-h-24 placeholder:text-neutral-450 resize-none text-(--text-charcoal)"
+                    disabled={isLoading || isConfirming}
+                  />
+                  
+                  {/* Retro Custom "ADD TO AUTOMATE" Button inspired by watches template */}
+                  <div className="flex justify-end p-2 border-vintage-t bg-[#ffffff]">
+                    <button
+                      type="submit"
+                      disabled={isLoading || isConfirming || !inputText.trim()}
+                      className="btn-vintage btn-vintage-primary group relative overflow-hidden font-retro-mono"
+                    >
+                      <span>{isLoading ? "ORCHESTRATING..." : "RUN WORKFLOW"}</span>
+                      <span className="border-vintage-l pl-2 ml-1 text-white group-hover:translate-x-0.5 transition-transform duration-200">
+                        {isLoading ? "⏳" : "↘"}
+                      </span>
+                    </button>
                   </div>
-                  <div className="bg-indigo-50/45 p-2.5 border border-indigo-100/50 rounded-xl flex items-start gap-2 shadow-inner">
-                    <CloudSun className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                    <p className="text-[11px] leading-relaxed text-slate-700">{outputs.travel.weather_summary}</p>
-                  </div>
+                </div>
+              </form>
+
+              {/* Starter Prompts - Vintage rounded badge styled pills */}
+              <div className="mt-6 pt-4 border-vintage-t flex flex-wrap items-center gap-3">
+                <span className="text-xs font-retro-mono font-bold uppercase text-neutral-400 tracking-wider">
+                  QUICK RUNS:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {starterPrompts.map((prompt, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleStarterClick(prompt)}
+                      disabled={isLoading || isConfirming}
+                      className="btn-vintage-pill"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reset/Clear Button */}
+              {agentState && (
+                <div className="mt-4 flex justify-start">
+                  <button
+                    onClick={handleReset}
+                    className="btn-vintage text-xs"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin-slow" />
+                    Reset Console
+                  </button>
+                </div>
+              )}
+
+              {/* Error Box */}
+              {errorMessage && (
+                <div className="mt-4 bg-red-50 border-vintage p-3 flex gap-2 text-xs text-red-800 font-retro-mono">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>{errorMessage}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Pipeline Step Progress Flow */}
+            {agentState && (
+              <div className="border-vintage bg-[#ffffff] p-6">
+                <div className="flex items-center gap-2 mb-4 border-vintage-b pb-3">
+                  <div className="w-2.5 h-2.5 bg-(--color-terracotta) animate-pulse" />
+                  <span className="text-xs font-retro-mono font-bold uppercase tracking-widest text-(--text-charcoal)">
+                    AGENT PIPELINE SEQUENCER
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-sm font-retro-mono">
+                  <span className="px-2.5 py-1 border-vintage bg-neutral-200 text-neutral-700 font-bold">START</span>
+                  <span className="text-neutral-400">→</span>
+                  
+                  {/* Travel */}
+                  <span className={`px-2.5 py-1 border-vintage transition-all font-bold ${
+                    getAgentStatus('travel') === 'completed' ? 'bg-(--color-olive) text-white' :
+                    getAgentStatus('travel') === 'working' ? 'bg-(--color-mustard) text-(--text-charcoal) animate-pulse' :
+                    'bg-[#ffffff] text-neutral-300'
+                  }`}>Travel</span>
+                  <span className="text-neutral-400">→</span>
+                  
+                  {/* Flights */}
+                  <span className={`px-2.5 py-1 border-vintage transition-all font-bold ${
+                    getAgentStatus('flights') === 'completed' ? 'bg-(--color-olive) text-white' :
+                    getAgentStatus('flights') === 'skipped' ? 'bg-neutral-100 text-neutral-300 line-through' :
+                    getAgentStatus('flights') === 'working' ? 'bg-(--color-mustard) text-(--text-charcoal) animate-pulse' :
+                    'bg-[#ffffff] text-neutral-300'
+                  }`}>Flights</span>
+                  <span className="text-neutral-400">→</span>
+                  
+                  {/* Hotels */}
+                  <span className={`px-2.5 py-1 border-vintage transition-all font-bold ${
+                    getAgentStatus('hotels') === 'completed' ? 'bg-(--color-olive) text-white' :
+                    getAgentStatus('hotels') === 'skipped' ? 'bg-neutral-100 text-neutral-300 line-through' :
+                    getAgentStatus('hotels') === 'working' ? 'bg-(--color-mustard) text-(--text-charcoal) animate-pulse' :
+                    'bg-[#ffffff] text-neutral-300'
+                  }`}>Hotels</span>
+                  <span className="text-neutral-400">→</span>
+                  
+                  {/* Budget */}
+                  <span className={`px-2.5 py-1 border-vintage transition-all font-bold ${
+                    getAgentStatus('budget') === 'completed' ? 'bg-(--color-olive) text-white' :
+                    getAgentStatus('budget') === 'working' ? 'bg-(--color-mustard) text-(--text-charcoal) animate-pulse' :
+                    'bg-[#ffffff] text-neutral-300'
+                  }`}>Budget</span>
+                  <span className="text-neutral-450">→</span>
+                  
+                  {/* Risk */}
+                  <span className={`px-2.5 py-1 border-vintage transition-all font-bold ${
+                    getAgentStatus('risk') === 'completed' ? 'bg-(--color-olive) text-white' :
+                    getAgentStatus('risk') === 'working' ? 'bg-(--color-mustard) text-(--text-charcoal) animate-pulse' :
+                    'bg-[#ffffff] text-neutral-300'
+                  }`}>Risk</span>
+                  <span className="text-neutral-450">→</span>
+
+                  {/* Memory */}
+                  <span className={`px-2.5 py-1 border-vintage transition-all font-bold ${
+                    getAgentStatus('memory') === 'completed' ? 'bg-(--color-olive) text-white' :
+                    getAgentStatus('memory') === 'working' ? 'bg-(--color-mustard) text-(--text-charcoal) animate-pulse' :
+                    'bg-[#ffffff] text-neutral-300'
+                  }`}>Memory</span>
+                  <span className="text-neutral-450">→</span>
+
+                  {/* Conflicts */}
+                  <span className={`px-2.5 py-1 border-vintage transition-all font-bold ${
+                    getAgentStatus('conflicts') === 'completed' ? 'bg-(--color-olive) text-white' :
+                    getAgentStatus('conflicts') === 'skipped' ? 'bg-neutral-100 text-neutral-300 line-through' :
+                    getAgentStatus('conflicts') === 'working' ? 'bg-(--color-mustard) text-(--text-charcoal) animate-pulse' :
+                    'bg-[#ffffff] text-neutral-300'
+                  }`}>Conflicts</span>
+                  <span className="text-neutral-450">→</span>
+                  
+                  {/* Calendar */}
+                  <span className={`px-2.5 py-1 border-vintage transition-all font-bold ${
+                    getAgentStatus('calendar') === 'completed' ? 'bg-(--color-olive) text-white' :
+                    getAgentStatus('calendar') === 'skipped' ? 'bg-neutral-100 text-neutral-300 line-through' :
+                    getAgentStatus('calendar') === 'working' ? 'bg-(--color-mustard) text-(--text-charcoal) animate-pulse' :
+                    'bg-[#ffffff] text-neutral-300'
+                  }`}>Calendar</span>
+                  <span className="text-neutral-450">→</span>
+                  
+                  {/* Email */}
+                  <span className={`px-2.5 py-1 border-vintage transition-all font-bold ${
+                    getAgentStatus('email') === 'completed' ? 'bg-(--color-olive) text-white' :
+                    getAgentStatus('email') === 'working' ? 'bg-(--color-mustard) text-(--text-charcoal) animate-pulse' :
+                    'bg-[#ffffff] text-neutral-300'
+                  }`}>Email</span>
+                  <span className="text-neutral-450">→</span>
+                  
+                  <span className={`px-2.5 py-1 border-vintage font-bold ${
+                    requiresApproval ? 'bg-(--color-terracotta) text-white animate-pulse' :
+                    executionResult ? 'bg-(--color-olive) text-white' :
+                    'bg-[#ffffff] text-neutral-350'
+                  }`}>EXECUTE</span>
+                </div>
+              </div>
+            )}
+
+            {/* Core Agent Network Outputs - 2 Column Retro Cards */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-vintage-b pb-2">
+                <h3 className="text-xl font-bold font-title text-(--text-charcoal) uppercase tracking-tight">
+                  Agent Core Deliverables
+                </h3>
+                <div className="text-xs font-retro-mono font-bold bg-[#ffffff] py-1 px-3 border-vintage shadow-[1px_1px_0px_#000]">
+                  10 ACTIVE NODES
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Travel Agent Card */}
+                <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
                   <div>
-                    <span className="font-bold text-slate-500 block mb-1">Packing List:</span>
-                    <ul className="grid grid-cols-2 gap-1 text-[11px] list-disc pl-4 text-slate-650">
-                      {outputs.travel.packing_list?.map((item, idx) => (
-                        <li key={idx}>{item}</li>
-                      ))}
-                    </ul>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                        NODE 01 // GEOLOCATOR
+                      </span>
+                      <span className={`text-xs font-retro-mono font-bold px-2 py-0.5 border-vintage uppercase ${
+                        getAgentStatus('travel') === 'completed' ? 'bg-(--color-olive) text-white' :
+                        getAgentStatus('travel') === 'working' ? 'bg-(--color-mustard) animate-pulse' : 'bg-neutral-100 text-neutral-400'
+                      }`}>
+                        {getAgentStatus('travel')}
+                      </span>
+                    </div>
+
+                    <h4 className="font-title font-bold text-xl text-(--text-charcoal) mb-2">Travel & Packing</h4>
+                    
+                    {outputs.travel ? (
+                      <div className="space-y-2.5 text-sm">
+                        <div className="font-retro-mono font-bold text-(--color-terracotta) flex items-center gap-1.5">
+                          <span>📍 {outputs.travel.city} ({outputs.travel.dates})</span>
+                        </div>
+                        <div className="border-vintage bg-(--bg-cream) p-2 font-body text-xs leading-relaxed italic">
+                          "{outputs.travel.weather_summary}"
+                        </div>
+                        <div className="text-xs">
+                          <span className="font-bold text-neutral-500 font-retro-mono block mb-1">SUGGESTED PACKING:</span>
+                          <div className="flex flex-wrap gap-1 font-retro-mono">
+                            {outputs.travel.packing_list?.map((item, idx) => (
+                              <span key={idx} className="bg-neutral-100 px-1.5 py-0.5 border-vintage text-xs font-semibold">{item}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-neutral-400 font-body py-4 italic border-t border-dashed border-neutral-250 mt-2">
+                        {isLoading ? "Running weather geocoding..." : "Awaiting travel coordinates..."}
+                      </p>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <div className="grow flex items-center justify-center border border-dashed border-slate-200/80 bg-slate-50/50 rounded-2xl text-slate-400 text-xs py-8">
-                  {isLoading ? "Running weather geocoding..." : "Awaiting travel instructions..."}
-                </div>
-              )}
-            </div>
 
-            {/* CARD 2: Finance Agent */}
-            <div className="glass rounded-3xl p-6 shadow-md relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-slate-350 flex flex-col min-h-55">
-              <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-600 shadow-sm">
-                  <DollarSign className="h-5 w-5" />
-                </div>
-                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                  getAgentStatus('finance') === 'completed' ? 'bg-emerald-50/15 text-emerald-700 border border-emerald-100' :
-                  getAgentStatus('finance') === 'working' ? 'bg-amber-50/15 text-amber-700 border-amber-100 animate-pulse' :
-                  'bg-slate-100 text-slate-500 border border-slate-200'
-                }`}>
-                  {getAgentStatus('finance')}
-                </span>
-              </div>
-              
-              <h3 className="font-bold text-slate-800 mb-2">Finance Agent</h3>
-              
-              {outputs.finance ? (
-                <div className="space-y-3 text-xs text-slate-600 grow">
-                  <div className="bg-emerald-50/45 p-3 border border-emerald-100/50 rounded-2xl space-y-1.5 shadow-inner">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Lodging:</span>
-                      <span className="font-mono text-slate-800 font-semibold">INR {outputs.finance.lodging}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Transit:</span>
-                      <span className="font-mono text-slate-800 font-semibold">INR {outputs.finance.transit}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-550">Food:</span>
-                      <span className="font-mono text-slate-800 font-semibold">INR {outputs.finance.food}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-550">Activities:</span>
-                      <span className="font-mono text-slate-800 font-semibold">INR {outputs.finance.activities}</span>
-                    </div>
-                    <div className="border-t border-emerald-200/50 pt-1.5 flex justify-between font-bold">
-                      <span className="text-emerald-750">Total Budget:</span>
-                      <span className="font-mono text-emerald-750">INR {outputs.finance.total}</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="grow flex items-center justify-center border border-dashed border-slate-200/80 bg-slate-50/50 rounded-2xl text-slate-400 text-xs py-8">
-                  {isLoading ? "Estimating lodging & food costs..." : "Awaiting financial details..."}
-                </div>
-              )}
-            </div>
-
-            {/* CARD 3: Calendar Agent */}
-            <div className="glass rounded-3xl p-6 shadow-md relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-slate-350 flex flex-col min-h-55">
-              <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-amber-550 border border-amber-100 rounded-2xl text-amber-600 shadow-sm">
-                  <Calendar className="h-5 w-5" />
-                </div>
-                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                  getAgentStatus('calendar') === 'completed' ? 'bg-emerald-50/15 text-emerald-700 border border-emerald-100' :
-                  getAgentStatus('calendar') === 'working' ? 'bg-amber-50/15 text-amber-700 border-amber-100 animate-pulse' :
-                  'bg-slate-100 text-slate-500 border border-slate-200'
-                }`}>
-                  {getAgentStatus('calendar')}
-                </span>
-              </div>
-              
-              <h3 className="font-bold text-slate-800 mb-2">Calendar Agent</h3>
-              
-              {outputs.calendar ? (
-                <div className="space-y-2.5 text-xs text-slate-650 grow">
-                  <div className="font-bold text-slate-800">{outputs.calendar.summary}</div>
-                  <div className="space-y-1 bg-amber-50/45 p-2.5 border border-amber-100/50 rounded-xl text-[11px] shadow-inner">
-                    <div className="flex items-center gap-1.5 text-slate-500">
-                      <Clock className="h-3 w-3 shrink-0" />
-                      <span>Start: {outputs.calendar.start_time}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-500">
-                      <Clock className="h-3 w-3 shrink-0" />
-                      <span>End: {outputs.calendar.end_time}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-500">
-                      <MapPin className="h-3 w-3 shrink-0" />
-                      <span>Location: {outputs.calendar.location}</span>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-slate-500 leading-snug">{outputs.calendar.description}</p>
-                </div>
-              ) : (
-                <div className="grow flex items-center justify-center border border-dashed border-slate-200/80 bg-slate-50/50 rounded-2xl text-slate-400 text-xs py-8">
-                  Awaiting travel details to schedule...
-                </div>
-              )}
-            </div>
-
-            {/* CARD 4: Email Agent */}
-            <div className="glass rounded-3xl p-6 shadow-md relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-slate-350 flex flex-col min-h-55">
-              <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-pink-50 border border-pink-100 rounded-2xl text-pink-600 shadow-sm">
-                  <Mail className="h-5 w-5" />
-                </div>
-                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                  getAgentStatus('email') === 'completed' ? 'bg-emerald-50/15 text-emerald-700 border border-emerald-100' :
-                  getAgentStatus('email') === 'working' ? 'bg-amber-50/15 text-amber-700 border-amber-100 animate-pulse' :
-                  'bg-slate-100 text-slate-500 border border-slate-200'
-                }`}>
-                  {getAgentStatus('email')}
-                </span>
-              </div>
-              
-              <h3 className="font-bold text-slate-800 mb-2">Email Agent</h3>
-              
-              {outputs.email ? (
-                <div className="space-y-2 text-xs text-slate-650 grow">
+                {/* Finance Agent Card */}
+                <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
                   <div>
-                    <span className="text-slate-500 font-bold">To:</span> <span className="font-mono text-slate-800 font-semibold">{outputs.email.to}</span>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                        NODE 02 // FINANCIALS
+                      </span>
+                      <span className={`text-xs font-retro-mono font-bold px-2 py-0.5 border-vintage uppercase ${
+                        getAgentStatus('finance') === 'completed' ? 'bg-(--color-olive) text-white' :
+                        getAgentStatus('finance') === 'working' ? 'bg-(--color-mustard) animate-pulse' : 'bg-neutral-100 text-neutral-450'
+                      }`}>
+                        {getAgentStatus('finance')}
+                      </span>
+                    </div>
+
+                    <h4 className="font-title font-bold text-xl text-(--text-charcoal) mb-2">Cost Projections</h4>
+                    
+                    {outputs.finance ? (
+                      <div className="font-retro-mono text-sm space-y-1 bg-(--bg-cream) border-vintage p-2">
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">LODGING:</span>
+                          <span className="font-bold text-(--text-charcoal)">INR {outputs.finance.lodging}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">TRANSIT:</span>
+                          <span className="font-bold text-(--text-charcoal)">INR {outputs.finance.transit}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">FOOD:</span>
+                          <span className="font-bold text-(--text-charcoal)">INR {outputs.finance.food}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">ACTIVITIES:</span>
+                          <span className="font-bold text-(--text-charcoal)">INR {outputs.finance.activities}</span>
+                        </div>
+                        <div className="border-t border-vintage pt-1 mt-1 flex justify-between font-bold text-(--color-terracotta)">
+                          <span>TOTAL EST:</span>
+                          <span>INR {outputs.finance.total}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-neutral-400 font-body py-4 italic border-t border-dashed border-neutral-250 mt-2">
+                        {isLoading ? "Estimating lodging & food costs..." : "Awaiting financial details..."}
+                      </p>
+                    )}
                   </div>
+                </div>
+
+                {/* Flight Search Card */}
+                <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
                   <div>
-                    <span className="text-slate-500 font-bold">Subject:</span> <span className="font-bold text-slate-800">{outputs.email.subject}</span>
-                  </div>
-                  <div className="bg-pink-50/40 p-2.5 border border-pink-100/50 rounded-xl text-[10px] max-h-21.25 overflow-y-auto whitespace-pre-line text-slate-600 shadow-inner">
-                    {outputs.email.body}
-                  </div>
-                </div>
-              ) : (
-                <div className="grow flex items-center justify-center border border-dashed border-slate-200/80 bg-slate-50/50 rounded-2xl text-slate-400 text-xs py-8">
-                  Awaiting event payload to compose draft...
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
-
-        {/* SUB-AGENTS DASHBOARD */}
-        {agentState && (
-          <div className="space-y-4 mt-8 animate-fade-in">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                Specialist Sub-Agent Reports
-              </h2>
-              <div className="text-xs font-bold text-slate-650 bg-white/80 py-1 px-3 border border-slate-200/60 rounded-full shadow-sm">
-                6 Specialist Nodes
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              
-              {/* CARD 1: Flight Search Agent */}
-              <div className="glass rounded-3xl p-6 shadow-md transition-all duration-300 hover:shadow-lg flex flex-col min-h-35">
-                <div 
-                  className="flex justify-between items-center cursor-pointer select-none"
-                  onClick={() => setCollapsedCards(prev => ({ ...prev, flights: !prev.flights }))}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600 shadow-sm">
-                      <Plane className="h-5 w-5" />
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                        NODE 03 // FLIGHTS
+                      </span>
+                      <span className={`text-xs font-retro-mono font-bold px-2 py-0.5 border-vintage uppercase ${
+                        getAgentStatus('flights') === 'completed' ? 'bg-(--color-olive) text-white' :
+                        getAgentStatus('flights') === 'skipped' ? 'bg-neutral-100 text-neutral-400 line-through' :
+                        getAgentStatus('flights') === 'working' ? 'bg-(--color-mustard) animate-pulse' : 'bg-neutral-100 text-neutral-400'
+                      }`}>
+                        {getAgentStatus('flights')}
+                      </span>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm">Flight Search Agent</h3>
-                      <p className="text-[10px] text-slate-400 font-semibold">Weighted scoring & rank</p>
-                    </div>
-                  </div>
-                  {collapsedCards.flights ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronUp className="h-4 w-4 text-slate-400" />}
-                </div>
 
-                {!collapsedCards.flights && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-3 grow flex flex-col justify-between">
+                    <h4 className="font-title font-bold text-xl text-(--text-charcoal) mb-2">Flight Search</h4>
+                    
                     {outputs.flights ? (
                       outputs.flights.skipped ? (
-                        <div className="bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl p-4 text-xs text-slate-500 text-center leading-relaxed">
+                        <div className="bg-(--bg-cream) border-vintage p-3 text-xs font-retro-mono text-neutral-500 italic text-center border-t border-dashed border-neutral-300 mt-2">
                           {outputs.flights.reason}
                         </div>
                       ) : (
-                        <div className="space-y-3 text-xs">
+                        <div className="space-y-2 border-t border-dashed border-neutral-300 pt-3 mt-2">
                           {outputs.flights.map((flight, idx) => (
-                            <div key={idx} className={`p-3 rounded-2xl border transition-all ${idx === 0 ? 'bg-indigo-50/40 border-indigo-200 shadow-sm' : 'bg-white/50 border-slate-205/65'}`}>
-                              <div className="flex justify-between items-center mb-1">
-                                <span className="font-bold text-slate-800">{flight.airline}</span>
-                                <span className="font-bold text-indigo-600 font-mono">INR {flight.price}</span>
+                            <div key={idx} className={`p-2 border-vintage font-retro-mono text-xs ${idx === 0 ? 'bg-(--bg-cream-dark)' : 'bg-white'}`}>
+                              <div className="flex justify-between font-bold">
+                                <span>✈️ {flight.airline}</span>
+                                <span className="text-(--color-terracotta)">INR {flight.price}</span>
                               </div>
-                              <div className="flex justify-between text-[11px] text-slate-500">
-                                <span>{flight.departure} - {flight.arrival} ({flight.duration}h)</span>
-                                <span>{flight.stops} stop(s)</span>
+                              <div className="text-neutral-500 text-xs mt-0.5">
+                                {flight.departure} → {flight.arrival} ({flight.duration}h) • {flight.stops} stop(s)
                               </div>
-                              <div className="flex justify-between items-center mt-2 pt-1.5 border-t border-slate-150/40 text-[10px]">
-                                <span className="font-bold text-slate-400">Rating: {flight.rating}⭐</span>
-                                <span className={`font-bold px-2 py-0.5 rounded-full ${idx === 0 ? 'bg-indigo-100 text-indigo-750 font-bold' : 'bg-slate-150 text-slate-600'}`}>Score: {flight.score}</span>
+                              <div className="flex justify-between text-xs mt-1 text-neutral-400 pt-1 border-t border-neutral-100">
+                                <span>Rating: {flight.rating}⭐</span>
+                                <span className="font-bold">Weighted Score: {flight.score}</span>
                               </div>
                             </div>
                           ))}
                         </div>
                       )
                     ) : (
-                      <div className="grow flex items-center justify-center border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl text-slate-400 text-xs py-8">
-                        {isLoading ? "Analyzing flight data..." : "Awaiting travel details..."}
-                      </div>
+                      <p className="text-sm text-neutral-400 font-body py-4 italic border-t border-dashed border-neutral-250 mt-2">
+                        {isLoading ? "Searching best flights..." : "Awaiting search parameters..."}
+                      </p>
                     )}
                   </div>
-                )}
-              </div>
-
-              {/* CARD 2: Hotel Recommendations */}
-              <div className="glass rounded-3xl p-6 shadow-md transition-all duration-300 hover:shadow-lg flex flex-col min-h-35">
-                <div 
-                  className="flex justify-between items-center cursor-pointer select-none"
-                  onClick={() => setCollapsedCards(prev => ({ ...prev, hotels: !prev.hotels }))}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600 shadow-sm">
-                      <Building className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm">Hotel Recommendations</h3>
-                      <p className="text-[10px] text-slate-400 font-semibold">Weighted amenity selection</p>
-                    </div>
-                  </div>
-                  {collapsedCards.hotels ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronUp className="h-4 w-4 text-slate-400" />}
                 </div>
 
-                {!collapsedCards.hotels && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-3 grow flex flex-col justify-between">
+                {/* Hotel Recommendations Card */}
+                <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                        NODE 04 // LODGING
+                      </span>
+                      <span className={`text-xs font-retro-mono font-bold px-2 py-0.5 border-vintage uppercase ${
+                        getAgentStatus('hotels') === 'completed' ? 'bg-(--color-olive) text-white' :
+                        getAgentStatus('hotels') === 'skipped' ? 'bg-neutral-100 text-neutral-400 line-through' :
+                        getAgentStatus('hotels') === 'working' ? 'bg-(--color-mustard) animate-pulse' : 'bg-neutral-100 text-neutral-400'
+                      }`}>
+                        {getAgentStatus('hotels')}
+                      </span>
+                    </div>
+
+                    <h4 className="font-title font-bold text-xl text-(--text-charcoal) mb-2">Hotel Recommendations</h4>
+                    
                     {outputs.hotels ? (
                       outputs.hotels.skipped ? (
-                        <div className="bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl p-4 text-xs text-slate-500 text-center leading-relaxed">
+                        <div className="bg-(--bg-cream) border-vintage p-3 text-xs font-retro-mono text-neutral-500 italic text-center border-t border-dashed border-neutral-300 mt-2">
                           {outputs.hotels.reason}
                         </div>
                       ) : (
-                        <div className="space-y-3 text-xs max-h-75 overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1 border-t border-dashed border-neutral-300 pt-3 mt-2">
                           {outputs.hotels.map((hotel, idx) => (
-                            <div key={idx} className="p-3 rounded-2xl border bg-white/50 border-slate-200/60 shadow-sm space-y-1.5">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <span className="font-bold text-slate-800 block text-xs leading-tight">{hotel.name}</span>
-                                  <span className="text-[10px] text-emerald-600 font-bold">{hotel.category}</span>
-                                </div>
-                                <span className="font-bold text-slate-800 font-mono text-xs">INR {hotel.price}/n</span>
+                            <div key={idx} className="p-2 border-vintage font-retro-mono text-xs bg-white space-y-1">
+                              <div className="flex justify-between font-bold">
+                                <span>🏢 {hotel.name}</span>
+                                <span>INR {hotel.price}/night</span>
                               </div>
-                              <div className="flex justify-between text-[10px] text-slate-500">
-                                <span>Dist: {hotel.distance} km</span>
-                                <span>Safety: {hotel.safety_score}/100</span>
+                              <div className="text-neutral-500 text-xs">
+                                Category: {hotel.category} • Dist: {hotel.distance}km • Safety: {hotel.safety_score}/100
                               </div>
                               <div className="flex flex-wrap gap-1">
                                 {hotel.amenities?.map((am, i) => (
-                                  <span key={i} className="text-[9px] px-1.5 py-0.5 bg-slate-100/70 text-slate-500 rounded font-semibold">{am}</span>
+                                  <span key={i} className="text-[10px] px-1 bg-neutral-100 border-vintage">{am}</span>
                                 ))}
                               </div>
-                              <div className="flex justify-between items-center pt-1 border-t border-slate-150/45 text-[10px]">
+                              <div className="flex justify-between text-xs text-neutral-450 border-t border-neutral-100 pt-1">
                                 <span>Rating: {hotel.rating}⭐</span>
-                                <span className="font-semibold text-emerald-700">Score: {hotel.overall_score}</span>
+                                <span className="font-bold text-(--color-olive)">Score: {hotel.overall_score}</span>
                               </div>
                             </div>
                           ))}
                         </div>
                       )
                     ) : (
-                      <div className="grow flex items-center justify-center border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl text-slate-400 text-xs py-8">
-                        {isLoading ? "Running hotel recommendations..." : "Awaiting hotel metrics..."}
-                      </div>
+                      <p className="text-sm text-neutral-400 font-body py-4 italic border-t border-dashed border-neutral-250 mt-2">
+                        {isLoading ? "Finding matching lodging..." : "Awaiting search parameters..."}
+                      </p>
                     )}
                   </div>
-                )}
-              </div>
-
-              {/* CARD 3: Budget Optimization */}
-              <div className="glass rounded-3xl p-6 shadow-md transition-all duration-300 hover:shadow-lg flex flex-col min-h-35">
-                <div 
-                  className="flex justify-between items-center cursor-pointer select-none"
-                  onClick={() => setCollapsedCards(prev => ({ ...prev, budget: !prev.budget }))}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-50 border border-amber-100 rounded-xl text-amber-600 shadow-sm">
-                      <TrendingDown className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm">Budget Optimization</h3>
-                      <p className="text-[10px] text-slate-400 font-semibold">Cheaper alternatives check</p>
-                    </div>
-                  </div>
-                  {collapsedCards.budget ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronUp className="h-4 w-4 text-slate-400" />}
                 </div>
 
-                {!collapsedCards.budget && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-3 grow flex flex-col justify-between">
+                {/* Budget Optimization Card */}
+                <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                        NODE 05 // BUDGET
+                      </span>
+                      <span className={`text-xs font-retro-mono font-bold px-2 py-0.5 border-vintage uppercase ${
+                        getAgentStatus('budget') === 'completed' ? 'bg-(--color-olive) text-white' :
+                        getAgentStatus('budget') === 'working' ? 'bg-(--color-mustard) animate-pulse' : 'bg-neutral-100 text-neutral-400'
+                      }`}>
+                        {getAgentStatus('budget')}
+                      </span>
+                    </div>
+
+                    <h4 className="font-title font-bold text-xl text-(--text-charcoal) mb-2">Budget Target</h4>
+                    
                     {outputs.optimized_budget ? (
-                      <div className="space-y-3 text-xs">
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="bg-slate-50 p-2 border border-slate-200/50 rounded-xl">
-                            <span className="text-[9px] text-slate-450 block font-semibold mb-0.5">Estimated</span>
-                            <span className="font-bold text-slate-800 font-mono text-[10px]">INR {outputs.optimized_budget.original_cost}</span>
+                      <div className="space-y-3 font-retro-mono text-xs border-t border-dashed border-neutral-300 pt-3 mt-2">
+                        <div className="grid grid-cols-3 gap-1.5 text-center">
+                          <div className="bg-neutral-100 p-1 border-vintage">
+                            <span className="text-[10px] text-neutral-450 block uppercase">ESTIMATED</span>
+                            <span className="font-bold">INR {outputs.optimized_budget.original_cost}</span>
                           </div>
-                          <div className="bg-emerald-50/50 p-2 border border-emerald-100 rounded-xl">
-                            <span className="text-[9px] text-emerald-700 block font-semibold mb-0.5">Optimized</span>
-                            <span className="font-bold text-emerald-800 font-mono text-[10px]">INR {outputs.optimized_budget.optimized_cost}</span>
+                          <div className="bg-(--bg-cream-dark) p-1 border-vintage">
+                            <span className="text-[10px] text-(--color-olive) block uppercase">OPTIMIZED</span>
+                            <span className="font-bold text-(--color-olive)">INR {outputs.optimized_budget.optimized_cost}</span>
                           </div>
-                          <div className="bg-indigo-50/50 p-2 border border-indigo-100 rounded-xl">
-                            <span className="text-[9px] text-indigo-700 block font-semibold mb-0.5">Savings</span>
-                            <span className="font-bold text-indigo-800 font-mono text-[10px]">+INR {outputs.optimized_budget.savings}</span>
+                          <div className="bg-(--color-terracotta) p-1 border-vintage text-white">
+                            <span className="text-[10px] block uppercase opacity-80">SAVINGS</span>
+                            <span className="font-bold">INR {outputs.optimized_budget.savings}</span>
                           </div>
                         </div>
-
-                        <div className="bg-amber-50/30 p-3 border border-amber-100/50 rounded-2xl shadow-inner space-y-1.5">
-                          <span className="font-bold text-slate-500 block text-[9px] uppercase tracking-wider">Trimming Guidelines:</span>
-                          <ul className="space-y-1 list-disc pl-4 text-slate-700 text-[11px] leading-relaxed">
-                            {outputs.optimized_budget.recommendations?.map((rec, i) => (
-                              <li key={i}>{rec}</li>
-                            ))}
+                        <div className="bg-(--bg-cream) border-vintage p-2">
+                          <span className="font-bold block text-[10px] text-neutral-500 uppercase mb-1">TRIMMING STRATEGIES:</span>
+                          <ul className="list-disc pl-3.5 space-y-0.5 text-neutral-600 leading-normal text-xs">
+                            {outputs.optimized_budget.recommendations?.map((rec, i) => <li key={i}>{rec}</li>)}
                           </ul>
                         </div>
                       </div>
                     ) : (
-                      <div className="grow flex items-center justify-center border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl text-slate-400 text-xs py-8">
-                        Awaiting financial data...
-                      </div>
+                      <p className="text-sm text-neutral-400 font-body py-4 italic border-t border-dashed border-neutral-250 mt-2">
+                        {isLoading ? "Optimizing budget target..." : "Awaiting budget targets..."}
+                      </p>
                     )}
                   </div>
-                )}
-              </div>
-
-              {/* CARD 4: Risk Report */}
-              <div className="glass rounded-3xl p-6 shadow-md transition-all duration-300 hover:shadow-lg flex flex-col min-h-35">
-                <div 
-                  className="flex justify-between items-center cursor-pointer select-none"
-                  onClick={() => setCollapsedCards(prev => ({ ...prev, risk: !prev.risk }))}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-red-50 border border-red-100 rounded-xl text-red-600 shadow-sm">
-                      <Shield className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm">Risk Report</h3>
-                      <p className="text-[10px] text-slate-400 font-semibold">Real-time alerts & safety</p>
-                    </div>
-                  </div>
-                  {collapsedCards.risk ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronUp className="h-4 w-4 text-slate-400" />}
                 </div>
 
-                {!collapsedCards.risk && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-3 grow flex flex-col justify-between">
+                {/* Risk & Safety Card */}
+                <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                        NODE 06 // RISK
+                      </span>
+                      <span className={`text-xs font-retro-mono font-bold px-2 py-0.5 border-vintage uppercase ${
+                        getAgentStatus('risk') === 'completed' ? 'bg-(--color-olive) text-white' :
+                        getAgentStatus('risk') === 'working' ? 'bg-(--color-mustard) animate-pulse' : 'bg-neutral-100 text-neutral-400'
+                      }`}>
+                        {getAgentStatus('risk')}
+                      </span>
+                    </div>
+
+                    <h4 className="font-title font-bold text-xl text-(--text-charcoal) mb-2">Risk & Safety</h4>
+                    
                     {outputs.risk ? (
-                      <div className="space-y-3 text-xs">
-                        <div className="flex justify-between items-center bg-slate-50 p-2 border border-slate-200/50 rounded-xl">
-                          <span className="font-bold text-slate-700">Safety Index:</span>
-                          <span className={`px-2 py-0.5 font-bold rounded-full text-[9px] uppercase tracking-wider ${
-                            outputs.risk.risk_level === 'High' ? 'bg-red-100 text-red-700' :
-                            outputs.risk.risk_level === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                            'bg-emerald-100 text-emerald-700'
+                      <div className="space-y-3 font-retro-mono text-xs border-t border-dashed border-neutral-300 pt-3 mt-2">
+                        <div className="flex justify-between items-center border-vintage bg-neutral-100 p-2">
+                          <span className="font-bold">SAFETY RANK:</span>
+                          <span className={`px-2 py-0.5 font-bold border-vintage uppercase text-xs ${
+                            outputs.risk.risk_level === 'High' ? 'bg-(--color-terracotta) text-white' :
+                            outputs.risk.risk_level === 'Medium' ? 'bg-(--color-mustard)' : 'bg-(--color-olive) text-white'
                           }`}>{outputs.risk.risk_level} ({outputs.risk.score}/100)</span>
                         </div>
-
-                        {/* Gauge bar */}
-                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                        <div className="w-full bg-neutral-200 h-1 border-vintage rounded-none overflow-hidden">
                           <div 
-                            className={`h-full transition-all ${
-                              outputs.risk.score > 70 ? 'bg-red-500' :
-                              outputs.risk.score > 30 ? 'bg-amber-500' :
-                              'bg-emerald-500'
-                            }`}
+                            className="h-full bg-(--color-terracotta)"
                             style={{ width: `${outputs.risk.score}%` }}
                           />
                         </div>
-
                         <div className="space-y-2">
-                          <div>
-                            <span className="font-bold text-slate-450 text-[9px] uppercase block mb-1">Risk Factors:</span>
-                            <ul className="list-disc pl-4 text-slate-700 space-y-0.5 text-[10px]">
+                          <div className="text-xs">
+                            <span className="font-bold text-neutral-500 uppercase block">IDENTIFIED RISK FACTORS:</span>
+                            <ul className="list-disc pl-3 text-neutral-600 space-y-0.5">
                               {outputs.risk.risks?.map((r, i) => <li key={i}>{r}</li>)}
                             </ul>
                           </div>
-                          
-                          <div className="bg-red-50/45 p-2.5 border border-red-100/50 rounded-xl space-y-1">
-                            <span className="font-bold text-red-700 text-[9px] uppercase block">Mitigation Advice:</span>
-                            <ul className="list-disc pl-4 text-slate-650 space-y-0.5 text-[10px]">
+                          <div className="bg-(--bg-cream) border-vintage p-2 text-xs">
+                            <span className="font-bold text-(--color-terracotta) uppercase block mb-1">MITIGATION SCHEME:</span>
+                            <ul className="list-disc pl-3 text-neutral-650 space-y-0.5">
                               {outputs.risk.recommendations?.map((rec, i) => <li key={i}>{rec}</li>)}
                             </ul>
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="grow flex items-center justify-center border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl text-slate-400 text-xs py-8">
-                        Evaluating safety protocols...
-                      </div>
+                      <p className="text-sm text-neutral-400 font-body py-4 italic border-t border-dashed border-neutral-250 mt-2">
+                        {isLoading ? "Evaluating risk factors..." : "Awaiting destination parameters..."}
+                      </p>
                     )}
                   </div>
-                )}
-              </div>
-
-              {/* CARD 5: Calendar Conflicts */}
-              <div className="glass rounded-3xl p-6 shadow-md transition-all duration-300 hover:shadow-lg flex flex-col min-h-35">
-                <div 
-                  className="flex justify-between items-center cursor-pointer select-none"
-                  onClick={() => setCollapsedCards(prev => ({ ...prev, conflicts: !prev.conflicts }))}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-pink-50 border border-pink-100 rounded-xl text-pink-600 shadow-sm">
-                      <AlertTriangle className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm">Calendar Conflicts</h3>
-                      <p className="text-[10px] text-slate-400 font-semibold">Overlapping slot checks</p>
-                    </div>
-                  </div>
-                  {collapsedCards.conflicts ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronUp className="h-4 w-4 text-slate-400" />}
                 </div>
 
-                {!collapsedCards.conflicts && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-3 grow flex flex-col justify-between">
+                {/* User Memory Card */}
+                <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                        NODE 07 // USER PROFILE
+                      </span>
+                      <span className={`text-xs font-retro-mono font-bold px-2 py-0.5 border-vintage uppercase ${
+                        getAgentStatus('memory') === 'completed' ? 'bg-(--color-olive) text-white' :
+                        getAgentStatus('memory') === 'working' ? 'bg-(--color-mustard) animate-pulse' : 'bg-neutral-100 text-neutral-400'
+                      }`}>
+                        {getAgentStatus('memory')}
+                      </span>
+                    </div>
+
+                    <h4 className="font-title font-bold text-xl text-(--text-charcoal) mb-2">User Memory</h4>
+                    
+                    {outputs.memory ? (
+                      <div className="space-y-3 font-retro-mono text-xs border-t border-dashed border-neutral-300 pt-3 mt-2">
+                        <div className="bg-(--bg-cream) border-vintage p-2 space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-neutral-500">AIRLINE PREF:</span>
+                            <span className="font-bold">{outputs.memory.preferred_airline}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-500">HOTEL TYPOLOGY:</span>
+                            <span className="font-bold">{outputs.memory.preferred_hotel_type}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-500">RESTRICTIONS:</span>
+                            <span className="font-bold">{outputs.memory.seat} / {outputs.memory.meal}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-500">HOME CITY:</span>
+                            <span className="font-bold">{outputs.memory.home_city}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="font-bold text-neutral-450 block uppercase text-[10px] mb-1">FREQUENT STOPS:</span>
+                          <div className="flex flex-wrap gap-1 font-retro-mono">
+                            {outputs.memory.frequently_visited_cities?.map((city, idx) => (
+                              <span key={idx} className="px-1.5 py-0.5 bg-white border-vintage font-bold">{city}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-neutral-400 font-body py-4 italic border-t border-dashed border-neutral-250 mt-2">
+                        {isLoading ? "Resolving custom preferences..." : "Awaiting user profile lookup..."}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Schedule Conflicts Card */}
+                <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                        NODE 08 // CONFLICTS
+                      </span>
+                      <span className={`text-xs font-retro-mono font-bold px-2 py-0.5 border-vintage uppercase ${
+                        getAgentStatus('conflicts') === 'completed' ? 'bg-(--color-olive) text-white' :
+                        getAgentStatus('conflicts') === 'skipped' ? 'bg-neutral-100 text-neutral-400 line-through' :
+                        getAgentStatus('conflicts') === 'working' ? 'bg-(--color-mustard) animate-pulse' : 'bg-neutral-100 text-neutral-400'
+                      }`}>
+                        {getAgentStatus('conflicts')}
+                      </span>
+                    </div>
+
+                    <h4 className="font-title font-bold text-xl text-(--text-charcoal) mb-2">Schedule Conflicts</h4>
+                    
                     {outputs.calendar_conflicts ? (
                       outputs.calendar_conflicts.skipped ? (
-                        <div className="bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl p-4 text-xs text-slate-500 text-center leading-relaxed">
+                        <div className="bg-(--bg-cream) border-vintage p-3 text-xs font-retro-mono text-neutral-550 italic text-center border-t border-dashed border-neutral-300 mt-2">
                           {outputs.calendar_conflicts.reason}
                         </div>
                       ) : (
-                        <div className="space-y-3 text-xs">
+                        <div className="space-y-2.5 font-retro-mono text-xs border-t border-dashed border-neutral-300 pt-3 mt-2">
                           {outputs.calendar_conflicts.hasConflict ? (
-                            <div className="bg-red-50/50 border border-red-200/50 rounded-2xl p-3 text-red-805 space-y-1">
-                              <span className="font-bold text-[9px] uppercase block tracking-wider">Conflicts Detected!</span>
-                              <ul className="list-disc pl-4 text-[10px] space-y-0.5">
+                            <div className="bg-red-50 border-vintage p-2.5 text-red-900 space-y-1">
+                              <span className="font-bold block text-[10px] uppercase tracking-wider">CONFLICT DETECTED:</span>
+                              <ul className="list-disc pl-3.5 space-y-0.5">
                                 {outputs.calendar_conflicts.conflicts?.map((c, i) => <li key={i}>{c}</li>)}
                               </ul>
                             </div>
                           ) : (
-                            <div className="bg-emerald-50/50 border border-emerald-250/50 rounded-2xl p-3 text-emerald-800 flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 shrink-0" />
-                              <span className="font-bold text-[10px]">No schedule conflicts detected.</span>
+                            <div className="bg-(--bg-cream-dark) border-vintage p-2 text-(--color-olive) text-xs font-bold flex items-center gap-1.5">
+                              <span>✔</span>
+                              <span>No scheduling conflicts detected. Slots clear.</span>
                             </div>
                           )}
-
                           {outputs.calendar_conflicts.suggestedSlots?.length > 0 && (
-                            <div className="space-y-1">
-                              <span className="font-bold text-slate-450 text-[9px] uppercase block mb-1">Recommended Alternates:</span>
+                            <div>
+                              <span className="font-bold text-neutral-450 block uppercase text-[10px] mb-1">ALTERNATES SUGGESTED:</span>
                               <div className="space-y-1">
                                 {outputs.calendar_conflicts.suggestedSlots.map((slot, i) => (
-                                  <div key={i} className="p-2 bg-indigo-50/30 border border-slate-200/60 rounded-xl text-[10px] text-slate-700 font-mono font-semibold">
+                                  <div key={i} className="p-1.5 bg-neutral-100 border-vintage font-bold text-neutral-700">
                                     {slot}
                                   </div>
                                 ))}
@@ -877,177 +829,279 @@ export default function App() {
                         </div>
                       )
                     ) : (
-                      <div className="grow flex items-center justify-center border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl text-slate-400 text-xs py-8">
-                        Analyzing schedules...
-                      </div>
+                      <p className="text-sm text-neutral-400 font-body py-4 italic border-t border-dashed border-neutral-250 mt-2">
+                        {isLoading ? "Running conflict scan..." : "Awaiting calendar conflicts check..."}
+                      </p>
                     )}
                   </div>
-                )}
-              </div>
-
-              {/* CARD 6: Personalized Preferences */}
-              <div className="glass rounded-3xl p-6 shadow-md transition-all duration-300 hover:shadow-lg flex flex-col min-h-35">
-                <div 
-                  className="flex justify-between items-center cursor-pointer select-none"
-                  onClick={() => setCollapsedCards(prev => ({ ...prev, preferences: !prev.preferences }))}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600 shadow-sm">
-                      <User className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm">Personalized Preferences</h3>
-                      <p className="text-[10px] text-slate-400 font-semibold">User preferences & history</p>
-                    </div>
-                  </div>
-                  {collapsedCards.preferences ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronUp className="h-4 w-4 text-slate-400" />}
                 </div>
 
-                {!collapsedCards.preferences && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-3 grow flex flex-col justify-between">
-                    {outputs.memory ? (
-                      <div className="space-y-3 text-xs">
-                        <div className="bg-white/70 p-3 border border-slate-200/80 rounded-2xl space-y-1 shadow-inner">
-                          <div className="flex justify-between">
-                            <span className="text-slate-550">Preferred Airline:</span>
-                            <span className="font-bold text-indigo-700">{outputs.memory.preferred_airline}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-550">Hotel Category:</span>
-                            <span className="font-bold text-slate-850">{outputs.memory.preferred_hotel_type}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-550">Seat / Meal:</span>
-                            <span className="font-semibold text-slate-800">{outputs.memory.seat} / {outputs.memory.meal}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-550">Home Location:</span>
-                            <span className="font-semibold text-slate-800">{outputs.memory.home_city}</span>
-                          </div>
-                        </div>
+                {/* Calendar Agent Card */}
+                <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                        NODE 09 // SCHEDULER
+                      </span>
+                      <span className={`text-xs font-retro-mono font-bold px-2 py-0.5 border-vintage uppercase ${
+                        getAgentStatus('calendar') === 'completed' ? 'bg-(--color-olive) text-white' :
+                        getAgentStatus('calendar') === 'working' ? 'bg-(--color-mustard) animate-pulse' : 'bg-neutral-100 text-neutral-450'
+                      }`}>
+                        {getAgentStatus('calendar')}
+                      </span>
+                    </div>
 
-                        <div>
-                          <span className="font-bold text-slate-450 text-[9px] uppercase block mb-1">Visited Locations:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {outputs.memory.frequently_visited_cities?.map((city, idx) => (
-                              <span key={idx} className="px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] rounded-full font-bold shadow-sm">{city}</span>
-                            ))}
-                          </div>
+                    <h4 className="font-title font-bold text-xl text-(--text-charcoal) mb-2">Calendar Scheduler</h4>
+                    
+                    {outputs.calendar ? (
+                      <div className="space-y-2 text-sm border-t border-dashed border-neutral-300 pt-3 mt-2">
+                        <div className="font-bold text-(--text-charcoal) font-title text-sm">{outputs.calendar.summary}</div>
+                        <div className="font-retro-mono text-xs space-y-0.5 bg-(--bg-cream) border-vintage p-2">
+                          <div className="text-neutral-500">START: {outputs.calendar.start_time}</div>
+                          <div className="text-neutral-500">END: {outputs.calendar.end_time}</div>
+                          <div className="text-neutral-500">VENUE: {outputs.calendar.location}</div>
+                        </div>
+                        <p className="text-xs text-neutral-550 italic font-body">"{outputs.calendar.description}"</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-neutral-400 font-body py-4 italic border-t border-dashed border-neutral-250 mt-2">
+                        Awaiting travel schedule instructions...
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Email Agent Card */}
+                <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                        NODE 10 // CORRESPONDENCE
+                      </span>
+                      <span className={`text-xs font-retro-mono font-bold px-2 py-0.5 border-vintage uppercase ${
+                        getAgentStatus('email') === 'completed' ? 'bg-(--color-olive) text-white' :
+                        getAgentStatus('email') === 'working' ? 'bg-(--color-mustard) animate-pulse' : 'bg-neutral-100 text-neutral-450'
+                      }`}>
+                        {getAgentStatus('email')}
+                      </span>
+                    </div>
+
+                    <h4 className="font-title font-bold text-xl text-(--text-charcoal) mb-2">Email Correspondence</h4>
+                    
+                    {outputs.email ? (
+                      <div className="space-y-1.5 text-sm border-t border-dashed border-neutral-300 pt-3 mt-2">
+                        <div className="font-retro-mono text-xs">
+                          <div><span className="text-neutral-500">TO:</span> <span className="font-bold">{outputs.email.to}</span></div>
+                          <div><span className="text-neutral-500">SUBJ:</span> <span className="font-bold">{outputs.email.subject}</span></div>
+                        </div>
+                        <div className="bg-(--bg-cream) border-vintage p-2 text-xs font-retro-mono max-h-20 overflow-y-auto whitespace-pre-line text-neutral-600">
+                          {outputs.email.body}
                         </div>
                       </div>
                     ) : (
-                      <div className="grow flex items-center justify-center border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl text-slate-400 text-xs py-8">
-                        Loading long term memory...
-                      </div>
+                      <p className="text-sm text-neutral-400 font-body py-4 italic border-t border-dashed border-neutral-250 mt-2">
+                        Awaiting details to generate correspondence draft...
+                      </p>
                     )}
                   </div>
-                )}
-              </div>
+                </div>
 
+              </div>
             </div>
+
           </div>
-        )}
 
-        {/* BOTTOM FLOATING SECTIONS: Human Review and Success confirmations */}
-        <div className="max-w-4xl mx-auto">
-          
-          {/* CONFIRMATION DRAWER / BLOCK */}
-          {requiresApproval && (
-            <div className="glass rounded-3xl p-6 shadow-md border border-indigo-200/50 bg-linear-to-r from-indigo-50/50 to-slate-50/50 space-y-4 animate-fade-in">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-100 border border-amber-200 rounded-xl text-amber-700 shadow-sm">
-                  <AlertTriangle className="h-5 w-5 animate-bounce" />
-                </div>
-                <div>
-                  <h3 className="text-md font-bold text-slate-950">Human-In-The-Loop Confirmation</h3>
-                  <p className="text-xs text-slate-500 font-semibold">
-                    Please review the proposed actions before writing to Google Calendar and Gmail.
-                  </p>
-                </div>
+          {/* RIGHT PANEL (Retro Badge, Analog Watch Graphic, Live Console Log, Execute Drawers) */}
+          <div className="space-y-6">
+            
+            {/* Dark Retro Status/Console Block */}
+            <div className="bg-(--bg-dark) text-(--text-light) border-vintage p-6 relative overflow-hidden shadow-[4px_4px_0px_#2A2725] min-h-145 flex flex-col justify-between">
+              
+              {/* Burnt Orange & Mustard Burst Badge */}
+              <div className="absolute top-3 right-3 transform rotate-12 z-20 hover:scale-105 transition-transform duration-200">
+                <svg width="64" height="64" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M50 0 L60 25 L85 15 L75 40 L100 50 L75 60 L85 85 L60 75 L50 100 L40 75 L15 85 L25 60 L0 50 L25 40 L15 15 L40 25 Z" fill="var(--color-mustard)" stroke="var(--border-charcoal)" strokeWidth="4" />
+                  <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fill="var(--text-charcoal)" fontWeight="900" fontSize="12" fontFamily="Courier Prime, monospace">
+                    {isLoading ? "RUNNING" : agentState ? "ACTIVE" : "STANDBY"}
+                  </text>
+                </svg>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white/70 p-4 border border-slate-200/80 rounded-2xl shadow-inner">
-                <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-indigo-650" /> Proposed Event
-                  </span>
-                  <div className="text-xs text-slate-700">
-                    <div className="font-bold text-slate-800">{outputs.calendar?.summary}</div>
-                    <div className="text-[11px] text-slate-500">{outputs.calendar?.start_time} - {outputs.calendar?.location}</div>
-                  </div>
+              {/* Pocket Watch Graphic Container */}
+              <div className="border-vintage-b border-neutral-700 pb-6 text-center">
+                <div className="relative inline-block mt-4 mb-2 bg-[#ffffff]/5 p-3 rounded-full border border-neutral-800">
+                  {/* Detailed Vector Vintage Watch Face SVG */}
+                  <svg className={`h-32 w-32 mx-auto ${isLoading ? "animate-[spin_10s_linear_infinite]" : "animate-[spin_40s_linear_infinite]"}`} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="60" cy="60" r="54" stroke="currentColor" strokeWidth="3" fill="#201F1D" />
+                    <circle cx="60" cy="60" r="48" stroke="currentColor" strokeWidth="1" strokeDasharray="3 3" />
+                    
+                    {/* Hour Numbers */}
+                    <text x="60" y="24" textAnchor="middle" fill="currentColor" fontSize="8" fontFamily="Georgia" fontWeight="bold">XII</text>
+                    <text x="96" y="63" textAnchor="middle" fill="currentColor" fontSize="8" fontFamily="Georgia" fontWeight="bold">III</text>
+                    <text x="60" y="103" textAnchor="middle" fill="currentColor" fontSize="8" fontFamily="Georgia" fontWeight="bold">VI</text>
+                    <text x="24" y="63" textAnchor="middle" fill="currentColor" fontSize="8" fontFamily="Georgia" fontWeight="bold">IX</text>
+                    
+                    {/* Hands */}
+                    <path d="M60 60 L78 40" stroke="var(--color-terracotta)" strokeWidth="3" strokeLinecap="round" />
+                    <path d="M60 60 L42 72" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                    <line x1="60" y1="60" x2="60" y2="28" stroke="var(--color-mustard)" strokeWidth="1" />
+                    
+                    {/* Center point */}
+                    <circle cx="60" cy="60" r="4" fill="var(--color-mustard)" stroke="currentColor" strokeWidth="1" />
+                  </svg>
                 </div>
+                <h4 className="font-title font-bold text-base tracking-wide text-white uppercase mt-2">
+                  System Chronometer
+                </h4>
+                <p className="text-xs font-retro-mono text-neutral-450 tracking-wider">
+                  MODEL NO. L-OS // AUTOMATION ENGINE
+                </p>
+              </div>
+
+              {/* Vintage Typewriter console logs section */}
+              <div className="grow my-6 flex flex-col justify-start">
+                <span className="text-xs font-retro-mono font-bold text-(--color-mustard) uppercase tracking-wider mb-2 block">
+                  SYS.CONSOLE LOGS:
+                </span>
                 
-                <div className="space-y-2 border-t md:border-t-0 md:border-l border-slate-200/80 pt-2 md:pt-0 md:pl-4">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider flex items-center gap-1">
-                    <Mail className="h-3 w-3 text-pink-650" /> Proposed Email
-                  </span>
-                  <div className="text-xs text-slate-700">
-                    <div className="font-bold text-slate-855">{outputs.email?.subject}</div>
-                    <div className="text-[11px] text-slate-500 truncate">Recipient: {outputs.email?.to}</div>
-                  </div>
-                </div>
-              </div>
+                <div className="bg-[#151413] border border-neutral-800 p-4 rounded-none font-retro-mono text-xs text-neutral-350 space-y-2 grow min-h-45 overflow-y-auto leading-normal">
+                  <div className="text-(--color-olive)">&gt; LifeOS Personal Automation System Init...</div>
+                  <div className="text-neutral-500">&gt; UTC Clock sync verified.</div>
+                  
+                  {isLoading && (
+                    <div className="text-(--color-mustard) animate-pulse">
+                      &gt; Orchestrating: Contacting travel, finance, calendar agents...
+                    </div>
+                  )}
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  onClick={handleReset}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm"
-                  disabled={isConfirming}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmExecute}
-                  className="px-5 py-2 bg-linear-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-xs font-bold rounded-xl transition-all hover:scale-105 cursor-pointer shadow-md shadow-indigo-600/25 flex items-center gap-1.5"
-                  disabled={isConfirming}
-                >
-                  {isConfirming ? (
+                  {agentState ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Executing...
+                      <div className="text-white">&gt; State output loaded. Awaiting confirmation.</div>
+                      <div className="text-(--color-mustard)">&gt; Proposed calendar event extracted.</div>
+                      <div className="text-(--color-mustard)">&gt; Proposed email draft composed.</div>
+                      {executionResult && (
+                        <div className="text-(--color-olive) font-bold">&gt; EXECUTION STATUS: SUCCESS!</div>
+                      )}
                     </>
                   ) : (
-                    <>
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Approve & Execute
-                    </>
+                    <div className="text-neutral-650">&gt; Standby. Enter travel request to launch thread.</div>
                   )}
-                </button>
+                </div>
               </div>
+
+              {/* Quote / Sub-text decoration */}
+              <div className="border-t border-neutral-800 pt-4 text-center">
+                <p className="text-xs italic font-body text-neutral-400 leading-relaxed px-4">
+                  "Orchestration is a way to say where you want to go without booking it yourself."
+                </p>
+              </div>
+
             </div>
-          )}
 
-          {/* EXECUTION SUCCESS PANEL */}
-          {executionResult && (
-            <div className="glass rounded-3xl p-6 shadow-md border border-emerald-250/50 bg-linear-to-r from-emerald-50/50 to-slate-50/50 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-100 border border-emerald-200 rounded-xl text-emerald-700 shadow-sm">
-                  <CheckCircle2 className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-md font-bold text-slate-950">Execution Successful!</h3>
-                  <p className="text-xs text-slate-500 font-semibold">
-                    The agent has completed the approved real-world automation tasks.
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white/70 p-4 border border-slate-200/80 rounded-2xl text-xs space-y-3 shadow-inner">
-                <div className="flex items-start gap-2">
-                  <span className="font-bold text-emerald-700 shrink-0">Calendar Status:</span>
-                  <span className="text-slate-700 leading-relaxed font-mono">{executionResult.calendar_status}</span>
-                </div>
+            {/* HUMAN REVIEW DRAWER / EXECUTION INTERFACES */}
+            {requiresApproval && (
+              <div className="border-vintage p-5 bg-(--bg-cream-dark) space-y-4 animate-fade-in relative shadow-[3px_3px_0px_#000]">
                 
-                <div className="flex items-start gap-2 border-t border-slate-100 pt-2.5">
-                  <span className="font-bold text-emerald-700 shrink-0">Gmail Status:</span>
-                  <span className="text-slate-700 leading-relaxed font-mono">{executionResult.email_status}</span>
+                <div className="flex items-start gap-2.5">
+                  <div className="p-1 border-vintage bg-(--color-terracotta) text-white text-xs font-bold font-retro-mono">
+                    ⚠️
+                  </div>
+                  <div>
+                    <h4 className="font-title font-bold text-base text-(--text-charcoal)">
+                      Pending Authorization
+                    </h4>
+                    <p className="text-xs text-neutral-500 font-retro-mono leading-tight">
+                      Verify draft event & email files before final system commit.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 bg-[#ffffff] p-4 border-vintage font-retro-mono text-xs shadow-inner">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-(--color-terracotta) uppercase tracking-wider block">
+                      [ ] PROPOSED EVENT payload:
+                    </span>
+                    <div className="text-xs font-title font-bold text-(--text-charcoal)">
+                      {outputs.calendar?.summary}
+                    </div>
+                    <div className="text-neutral-500 text-xs">
+                      {outputs.calendar?.start_time} // {outputs.calendar?.location}
+                    </div>
+                  </div>
+                  
+                  <div className="border-t border-dashed border-neutral-300 pt-2 space-y-1">
+                    <span className="text-[10px] font-bold text-(--color-terracotta) uppercase tracking-wider block">
+                      [ ] PROPOSED EMAIL payload:
+                    </span>
+                    <div className="font-bold text-(--text-charcoal) truncate">
+                      {outputs.email?.subject}
+                    </div>
+                    <div className="text-neutral-500 text-xs truncate">
+                      Recipient: {outputs.email?.to}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-1">
+                  <button
+                    onClick={handleReset}
+                    className="btn-vintage text-xs bg-white"
+                    disabled={isConfirming}
+                  >
+                    Abort
+                  </button>
+                  <button
+                    onClick={handleConfirmExecute}
+                    className="btn-vintage btn-vintage-primary btn-vintage-accent text-xs font-bold shadow-[2px_2px_0px_#000]"
+                    disabled={isConfirming}
+                  >
+                    {isConfirming ? (
+                      <span>Executing...</span>
+                    ) : (
+                      <span>Approve & Write</span>
+                    )}
+                  </button>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* SYSTEM SUCCESS EXECUTION RECEIPT */}
+            {executionResult && (
+              <div className="border-vintage p-5 bg-(--bg-cream-dark) space-y-4 animate-fade-in shadow-[3px_3px_0px_#000]">
+                
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1 border-vintage bg-(--color-olive) text-white text-xs font-bold font-retro-mono">
+                    ✔
+                  </div>
+                  <div>
+                    <h4 className="font-title font-bold text-base text-(--text-charcoal)">
+                      Commit Successful
+                    </h4>
+                    <p className="text-xs text-neutral-550 font-retro-mono">
+                      All remote writes completed successfully.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-[#ffffff] p-4 border-vintage font-retro-mono text-xs space-y-2.5 shadow-inner overflow-hidden">
+                  <div className="flex flex-col gap-1 leading-snug">
+                    <span className="font-bold text-(--color-olive)">CALENDAR STATE:</span>
+                    <span className="text-neutral-650 font-semibold break-all">{executionResult.calendar_status}</span>
+                  </div>
+                  
+                  <div className="flex flex-col gap-1 leading-snug border-t border-dashed border-neutral-200 pt-2">
+                    <span className="font-bold text-(--color-olive)">GMAIL STATE:</span>
+                    <span className="text-neutral-650 font-semibold break-all">{executionResult.email_status}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>
 
         </div>
-      </main>
+
+      </div>
     </div>
   );
 }
