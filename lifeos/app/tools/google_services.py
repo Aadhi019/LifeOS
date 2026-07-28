@@ -129,9 +129,9 @@ def create_calendar_event(summary: str, start_time: str, end_time: str, descript
     except Exception as ex:
         return f"Error: Failed to save mock calendar event. Details: {str(ex)}"
 
-def draft_email(to: str, subject: str, body: str) -> str:
+def send_email(to: str, subject: str, body: str) -> str:
     """
-    Creates an email draft. Uses Gmail API if credentials are set up,
+    Sends an email directly. Uses Gmail API if credentials are set up,
     otherwise falls back to saving to a local JSON file.
     """
     creds = get_google_credentials()
@@ -139,6 +139,17 @@ def draft_email(to: str, subject: str, body: str) -> str:
     if creds:
         try:
             service: Any = build('gmail', 'v1', credentials=creds)
+            
+            # Resolve special 'me' alias to actual authenticated email address
+            if to.strip().lower() == "me":
+                try:
+                    profile = service.users().getProfile(userId='me').execute()
+                    resolved_email = profile.get('emailAddress')
+                    if resolved_email:
+                        to = resolved_email
+                except Exception as pe:
+                    print(f"Failed to resolve 'me' email address: {pe}")
+
             message = EmailMessage()
             message.set_content(body)
             message['To'] = to
@@ -146,14 +157,12 @@ def draft_email(to: str, subject: str, body: str) -> str:
             
             encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
             create_message = {
-                'message': {
-                    'raw': encoded_message
-                }
+                'raw': encoded_message
             }
-            draft = service.users().drafts().create(userId="me", body=create_message).execute()
-            return f"Success: Email draft created on Gmail (Draft ID: {draft.get('id')})."
+            sent_message = service.users().messages().send(userId="me", body=create_message).execute()
+            return f"Success: Email sent directly via Gmail (Message ID: {sent_message.get('id')})."
         except Exception as e:
-            print(f"Failed to create Gmail draft: {e}. Falling back to mock file.")
+            print(f"Failed to send Gmail message: {e}. Falling back to mock file.")
             
     # Mock fallback
     try:
@@ -177,6 +186,6 @@ def draft_email(to: str, subject: str, body: str) -> str:
         with open(MOCK_EMAILS_PATH, "w") as f:
             json.dump(drafts, f, indent=2)
             
-        return f"Mock Success: Email draft proposed & saved locally in mock_emails.json (Draft ID: {new_draft['id']})."
+        return f"Mock Success: Email proposed & saved locally in mock_emails.json (Message ID: {new_draft['id']})."
     except Exception as ex:
-        return f"Error: Failed to save mock email draft. Details: {str(ex)}"
+        return f"Error: Failed to save mock email. Details: {str(ex)}"

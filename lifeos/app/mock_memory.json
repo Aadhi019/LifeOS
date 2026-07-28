@@ -1,5 +1,5 @@
 {
-  "preferred_airline": "IndiGo",
+  "preferred_airline": "British Airways",
   "preferred_hotel_type": "Budget",
   "meal": "Vegetarian",
   "seat": "Window",
@@ -8,7 +8,10 @@
   "frequently_visited_cities": [
     "Bangalore",
     "Mumbai",
-    "Chennai"
+    "Chennai",
+    "Paris",
+    "Leh",
+    "London"
   ],
   "travel_style": "Comfort & Efficiency"
 }

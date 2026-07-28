@@ -69,6 +69,58 @@ def rank_flights(flights: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         
     return sorted(ranked, key=lambda x: x["score"], reverse=True)
 
+def parse_duration(duration_val: Any) -> float:
+    """Helper to convert various duration formats (e.g., float, '11.5', '11h 30m') to float hours."""
+    if isinstance(duration_val, (int, float)):
+        return float(duration_val)
+    
+    val_str = str(duration_val).strip().lower()
+    if not val_str:
+        return 1.0
+        
+    try:
+        # Check if it's already a float string
+        return float(val_str)
+    except ValueError:
+        pass
+        
+    # Attempt to parse format like "11h 30m" or "11h" or "30m"
+    hours = 0.0
+    minutes = 0.0
+    import re
+    h_match = re.search(r'(\d+)\s*h', val_str)
+    m_match = re.search(r'(\d+)\s*m', val_str)
+    
+    if h_match:
+        hours = float(h_match.group(1))
+    if m_match:
+        minutes = float(m_match.group(1))
+        
+    if h_match or m_match:
+        return hours + (minutes / 60.0)
+        
+    # Attempt parsing any digits found
+    digits = re.findall(r'[\d\.]+', val_str)
+    if digits:
+        try:
+            return float(digits[0])
+        except ValueError:
+            pass
+            
+    return 1.0
+
+def fetch_real_flights_via_search(origin: str, destination: str, date_str: str) -> List[Dict[str, Any]]:
+    """Searches DuckDuckGo for real flights between origin and destination on travel date."""
+    try:
+        from ddgs import DDGS
+        query = f"flights from {origin} to {destination} on {date_str} price airlines booking"
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=8))
+            return results
+    except Exception as e:
+        print(f"Error fetching real-time flights from DDGS: {e}")
+        return []
+
 def process(state: AgentState) -> AgentState:
     """
     Flight Search Agent node.
@@ -89,63 +141,102 @@ def process(state: AgentState) -> AgentState:
     from lifeos.app.agents.memory_agent import load_memory_from_file
     memory_info = load_memory_from_file()
     preferred_airline = memory_info.get("preferred_airline", "IndiGo")
+    home_city = memory_info.get("home_city", "Bangalore")
     
-    # Load and filter flights
-    all_flights = load_mock_flights()
-    filtered = [f for f in all_flights if f["destination"].lower() == destination.lower()]
+    # Attempt real-time flight search
+    search_results = fetch_real_flights_via_search(home_city, destination, travel_date)
+    flight_data = []
     
-    if not filtered:
-        # Fallback dynamic generator
-        filtered = generate_dynamic_flights("Bangalore", destination, travel_date)
+    if search_results:
+        snippets = []
+        for i, res in enumerate(search_results, 1):
+            snippets.append(f"Result {i}:\nTitle: {res.get('title')}\nSnippet: {res.get('body')}\nURL: {res.get('href')}\n")
+        search_text = "\n".join(snippets)
         
-    ranked = rank_flights(filtered)
+        llm = get_llm()
+        prompt = f"""
+        You are the Flight Search Agent for LifeOS.
+        Below are real web search results about flights from {home_city} to {destination} on {travel_date}:
+        {search_text}
+        
+        Analyze the search results. Identify and extract at least 3-4 real, specific flight options.
+        Do NOT use aggregator names or directories like 'Expedia', 'Booking.com', 'Tripadvisor', 'Skyscanner', 'Kayak', 'Bing', or 'Google Flights' as the airline name. The airline name must be the actual operating airline (e.g., 'Air India', 'IndiGo', 'Air France', 'Lufthansa', 'Emirates', etc.).
+        If specific departure/arrival times, durations, or stops are mentioned in the results, use them. If not, estimate realistic values based on typical schedules.
+        If prices are mentioned in the results, use them. If not, estimate realistic prices (convert USD/EUR/GBP to INR: 1 USD ≈ 85 INR, 1 EUR ≈ 92 INR, 1 GBP ≈ 110 INR).
+        Return ONLY a JSON list of flights, where each flight item includes all fields:
+        - origin: The starting city name (e.g., '{home_city}')
+        - destination: The target arrival city name (e.g., '{destination}')
+        - airline: The actual operating airline name (e.g., 'IndiGo', 'Air India', 'Air France', etc.)
+        - price: integer (price in INR)
+        - duration: float representing duration in hours (e.g. 2.5 or 11.5)
+        - departure: string (e.g. "06:00 AM" or "10:30 PM")
+        - arrival: string (e.g. "08:30 AM" or "09:00 AM")
+        - stops: integer (0 for direct, 1, 2 etc.)
+        - rating: float (0.0 to 5.0, estimate realistically)
+
+        Structure the return payload as a JSON array:
+        [
+          {{
+            "origin": "{home_city}",
+            "destination": "{destination}",
+            "airline": "Airline Name",
+            "price": price_integer,
+            "duration": duration_float,
+            "departure": "departure_time",
+            "arrival": "arrival_time",
+            "stops": stops_integer,
+            "rating": rating_float
+          }}
+        ]
+        """
+        try:
+            res = llm.invoke([HumanMessage(content=prompt)])
+            extracted = extract_json(res.content)
+            if isinstance(extracted, list) and len(extracted) > 0:
+                # Sanitize extracted fields to match required types for ranking
+                for f in extracted:
+                    f["origin"] = str(f.get("origin") or home_city).strip()
+                    f["destination"] = str(f.get("destination") or destination).strip()
+                    try:
+                        f["price"] = int(float(str(f.get("price", 10000)).replace(",", "").strip()))
+                    except Exception:
+                        f["price"] = 10000
+                    f["duration"] = parse_duration(f.get("duration", 1.0))
+                    try:
+                        f["stops"] = int(f.get("stops", 0))
+                    except Exception:
+                        f["stops"] = 0
+                    try:
+                        f["rating"] = float(f.get("rating", 4.0))
+                    except Exception:
+                        f["rating"] = 4.0
+                flight_data = extracted
+        except Exception as e:
+            print(f"Error in Flight Agent LLM extraction: {e}")
+            
+    # Fallback to mock data if real-time search was empty or failed
+    if not flight_data:
+        all_flights = load_mock_flights()
+        filtered = [f for f in all_flights if f["destination"].lower() == destination.lower()]
+        if not filtered:
+            filtered = generate_dynamic_flights(home_city, destination, travel_date)
+        flight_data = filtered
+        
+    # Rank the flights (real-time or fallback)
+    ranked = rank_flights(flight_data)
     
     # Apply minor boost to preferred airline in rank score
     if preferred_airline:
         for f in ranked:
-            if f["airline"].lower() == preferred_airline.lower():
-                f["score"] = min(100.0, round(f["score"] + 5.0, 1))
+            if f.get("airline", "").lower() == preferred_airline.lower():
+                f["score"] = min(100.0, round(f.get("score", 0.0) + 5.0, 1))
         # Re-sort after boost
-        ranked = sorted(ranked, key=lambda x: x["score"], reverse=True)
-
-    llm = get_llm()
-    prompt = f"""
-    You are the Flight Search Agent for LifeOS.
-    Analyze the following flight options from Bangalore to {destination} on {travel_date}:
-    {json.dumps(ranked, indent=2)}
-    
-    Summarize these flight options, identify the recommended choice (highest score), and explain why.
-    Return ONLY a JSON list of flights, where each flight item includes all fields: airline, price, duration, departure, arrival, stops, rating, and score.
-    Structure the return payload as a JSON array:
-    [
-      {{
-        "airline": "Airline Name",
-        "price": price_integer,
-        "duration": "duration_string_or_hours",
-        "departure": "departure_time",
-        "arrival": "arrival_time",
-        "stops": stops_integer,
-        "rating": rating_float,
-        "score": score_float
-      }},
-      ...
-    ]
-    """
-    
-    try:
-        res = llm.invoke([HumanMessage(content=prompt)])
-        flight_data = extract_json(res.content)
-        # Ensure it is a list
-        if not isinstance(flight_data, list):
-            flight_data = ranked
-    except Exception as e:
-        print(f"Error in Flight Agent LLM call: {e}")
-        flight_data = ranked
+        ranked = sorted(ranked, key=lambda x: x.get("score", 0.0), reverse=True)
         
-    outputs["flights"] = flight_data
+    outputs["flights"] = ranked
     return {
         **state,
         "agent_outputs": outputs,
-        "flight_options": flight_data,
+        "flight_options": ranked,
         "active_agent": "supervisor"
     }

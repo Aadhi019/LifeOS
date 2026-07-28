@@ -75,6 +75,18 @@ def rank_hotels(hotels: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         
     return sorted(ranked, key=lambda x: x["overall_score"], reverse=True)
 
+def fetch_real_hotels_via_search(city: str) -> List[Dict[str, Any]]:
+    """Searches DuckDuckGo for real hotels in the destination city."""
+    try:
+        from ddgs import DDGS
+        query = f"hotels in {city} price rating reviews booking"
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=8))
+            return results
+    except Exception as e:
+        print(f"Error fetching real-time hotels from DDGS: {e}")
+        return []
+
 def process(state: AgentState) -> AgentState:
     """
     Hotel Recommendation Agent node.
@@ -95,62 +107,80 @@ def process(state: AgentState) -> AgentState:
     memory_info = load_memory_from_file()
     preferred_hotel_type = memory_info.get("preferred_hotel_type", "Business")
     
-    # Load and filter hotels
-    all_hotels = load_mock_hotels()
-    filtered = [h for h in all_hotels if h["city"].lower() == city.lower()]
+    # Attempt real-time hotel search
+    search_results = fetch_real_hotels_via_search(city)
+    hotel_data = []
     
-    if not filtered:
-        # Fallback dynamic hotels
-        filtered = generate_dynamic_hotels(city)
+    if search_results:
+        # Build snippets from search results
+        snippets = []
+        for i, res in enumerate(search_results, 1):
+            snippets.append(f"Result {i}:\nTitle: {res.get('title')}\nSnippet: {res.get('body')}\nURL: {res.get('href')}\n")
+        search_text = "\n".join(snippets)
         
-    ranked = rank_hotels(filtered)
+        llm = get_llm()
+        prompt = f"""
+        You are the Hotel Recommendation Agent for LifeOS.
+        Below are real web search results about hotels in {city}:
+        {search_text}
+        
+        Analyze the search results. Identify and extract at least 3-4 real, specific hotels currently operating in {city}.
+        Do NOT use aggregator names, directories, search engine listings, or booking platforms like 'Expedia', 'Booking.com', 'Tripadvisor', 'Bing', or 'Hotels' as the hotel name. The hotel name must be the actual name of a specific physical hotel (e.g., 'Paris France Hotel' or 'Hôtel Mayfair Paris' or 'Le Bristol Paris').
+        Based on the search descriptions, classify/infer their Category (Budget, Business, Luxury, or Family).
+        If ratings or prices are mentioned in the results, use them. If not, estimate realistic values based on typical rates for that hotel (convert USD/EUR/GBP to INR: 1 USD ≈ 85 INR, 1 EUR ≈ 92 INR, 1 GBP ≈ 110 INR).
+        Return ONLY a JSON list of hotels, where each hotel item includes all fields:
+        - name: The real hotel name extracted from search results
+        - category: One of Budget, Business, Luxury, or Family
+        - rating: float (0.0 to 5.0)
+        - distance: float (estimated distance from city center in km)
+        - price: integer (price per night in INR)
+        - amenities: list of strings representing amenities (e.g. ["Wi-Fi", "Pool", "Gym"])
+        - safety_score: integer (0 to 100, estimate realistically)
+
+        Structure the return payload as a JSON array:
+        [
+          {{
+            "name": "Hotel Name",
+            "category": "Budget/Business/Luxury/Family",
+            "rating": rating_float,
+            "distance": distance_float,
+            "price": price_integer,
+            "amenities": ["amenity1", "amenity2"],
+            "safety_score": safety_score_integer
+          }}
+        ]
+        """
+        try:
+            res = llm.invoke([HumanMessage(content=prompt)])
+            extracted = extract_json(res.content)
+            if isinstance(extracted, list) and len(extracted) > 0:
+                hotel_data = extracted
+        except Exception as e:
+            print(f"Error in Hotel Agent LLM extraction: {e}")
+            
+    # Fallback to mock data if real-time search was empty or failed
+    if not hotel_data:
+        all_hotels = load_mock_hotels()
+        filtered = [h for h in all_hotels if h["city"].lower() == city.lower()]
+        if not filtered:
+            filtered = generate_dynamic_hotels(city)
+        hotel_data = filtered
+        
+    # Rank the hotels (real-time or fallback)
+    ranked = rank_hotels(hotel_data)
     
     # Boost rating for preferred hotel type
     if preferred_hotel_type:
         for h in ranked:
-            if h["category"].lower() == preferred_hotel_type.lower():
-                h["overall_score"] = min(100.0, round(h["overall_score"] + 5.0, 1))
+            if h.get("category", "").lower() == preferred_hotel_type.lower():
+                h["overall_score"] = min(100.0, round(h.get("overall_score", 0.0) + 5.0, 1))
         # Re-sort after boost
-        ranked = sorted(ranked, key=lambda x: x["overall_score"], reverse=True)
-
-    llm = get_llm()
-    prompt = f"""
-    You are the Hotel Recommendation Agent for LifeOS.
-    Analyze the following hotel recommendations for {city}:
-    {json.dumps(ranked, indent=2)}
-    
-    Summarize these hotel choices, identify the best options across Budget, Business, Luxury, and Family, and explain why.
-    Return ONLY a JSON list of hotels, where each hotel item includes all fields: name, category, rating, distance, price, amenities, safety_score, and overall_score.
-    Structure the return payload as a JSON array:
-    [
-      {{
-        "name": "Hotel Name",
-        "category": "Budget/Business/Luxury/Family",
-        "rating": rating_float,
-        "distance": distance_float,
-        "price": price_integer,
-        "amenities": ["amenity1", "amenity2"],
-        "safety_score": safety_score_integer,
-        "overall_score": overall_score_float
-      }},
-      ...
-    ]
-    """
-    
-    try:
-        res = llm.invoke([HumanMessage(content=prompt)])
-        hotel_data = extract_json(res.content)
-        # Ensure it is a list
-        if not isinstance(hotel_data, list):
-            hotel_data = ranked
-    except Exception as e:
-        print(f"Error in Hotel Agent LLM call: {e}")
-        hotel_data = ranked
+        ranked = sorted(ranked, key=lambda x: x.get("overall_score", 0.0), reverse=True)
         
-    outputs["hotels"] = hotel_data
+    outputs["hotels"] = ranked
     return {
         **state,
         "agent_outputs": outputs,
-        "hotel_options": hotel_data,
+        "hotel_options": ranked,
         "active_agent": "supervisor"
     }

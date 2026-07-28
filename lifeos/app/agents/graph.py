@@ -1,13 +1,13 @@
 import json
 import re
 from datetime import datetime, date
-from typing import Dict, Any, Literal
+from typing import Dict, Any, Literal, List
 
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, START, END
 
-from lifeos.app.config import GEMINI_API_KEY
+from lifeos.app.config import GEMINI_API_KEY, GEMINI_MODEL
 from lifeos.app.agents.state import AgentState
 from lifeos.app.tools.weather import get_weather_forecast
 
@@ -113,7 +113,7 @@ def get_llm():
         print("INFO: GEMINI_API_KEY not configured. Falling back to local offline MockLLM.")
         return MockLLM()
     return ChatGoogleGenerativeAI(
-        model="gemini-3.5-flash",
+        model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY,
         temperature=0.1
     )
@@ -226,6 +226,18 @@ def supervisor_node(state: AgentState) -> Dict[str, Any]:
         # 10. Approval
         return {"agent_outputs": outputs, "active_agent": "approval"}
 
+def fetch_real_travel_costs_via_search(city: str) -> List[Dict[str, Any]]:
+    """Searches DuckDuckGo for typical travel costs in the destination city."""
+    try:
+        from ddgs import DDGS
+        query = f"average daily travel cost in {city} lodging food transit INR USD"
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=5))
+            return results
+    except Exception as e:
+        print(f"Error fetching travel cost info from DDGS: {e}")
+        return []
+
 def travel_agent_node(state: AgentState) -> Dict[str, Any]:
     """
     Travel & Finance Agent node.
@@ -265,6 +277,13 @@ def travel_agent_node(state: AgentState) -> Dict[str, Any]:
     # Step 2: Fetch weather forecast
     weather_info = get_weather_forecast(city)
     
+    # Step 2.5: Fetch real-time travel costs
+    cost_search_results = fetch_real_travel_costs_via_search(city)
+    cost_snippets = []
+    for i, res in enumerate(cost_search_results, 1):
+        cost_snippets.append(f"Result {i}:\nTitle: {res.get('title')}\nSnippet: {res.get('body')}\n")
+    cost_search_text = "\n".join(cost_snippets) if cost_snippets else "No search results available."
+    
     # Step 3: Run Gemini to construct the packing list and estimate finances
     travel_prompt = f"""
     You are the Travel and Finance Planner for LifeOS.
@@ -272,12 +291,16 @@ def travel_agent_node(state: AgentState) -> Dict[str, Any]:
     Here is the weather forecast for {city}:
     {weather_info}
     
+    Here are real-time web search results about travel expenses in {city}:
+    {cost_search_text}
+    
     Today's date is {today_str}.
     
-    Based on the destination, dates, and weather, perform the following:
+    Based on the destination, dates, weather, and real-time travel cost data above, perform the following:
     1. Summarize the weather on the travel date.
     2. Generate a practical packing list of 4-6 items.
     3. Estimate travel costs in INR (Indian Rupee) for: lodging, transit, food, activities.
+       Use the search results to formulate a realistic cost estimate for that city (converting USD/EUR/GBP to INR: 1 USD ≈ 85 INR, 1 EUR ≈ 92 INR, 1 GBP ≈ 110 INR if necessary).
     
     Return ONLY a JSON object with this exact structure (do not include markdown block):
     {{
@@ -286,11 +309,11 @@ def travel_agent_node(state: AgentState) -> Dict[str, Any]:
       "weather_summary": "Short 1-sentence description",
       "packing_list": ["item1", "item2", "item3"],
       "finance": {{
-        "lodging": "Estimated cost for lodging (e.g. 3500)",
-        "transit": "Estimated transit cost (e.g. 2000)",
-        "food": "Estimated food cost (e.g. 1500)",
-        "activities": "Estimated activities cost (e.g. 1000)",
-        "total": "Sum of above costs"
+        "lodging": "Estimated cost for lodging (integer or clean numeric string, e.g. 3500)",
+        "transit": "Estimated transit cost (integer or clean numeric string, e.g. 2000)",
+        "food": "Estimated food cost (integer or clean numeric string, e.g. 1500)",
+        "activities": "Estimated activities cost (integer or clean numeric string, e.g. 1000)",
+        "total": "Sum of above costs (integer or clean numeric string, e.g. 8000)"
       }}
     }}
     """
@@ -360,6 +383,7 @@ def email_agent_node(state: AgentState) -> Dict[str, Any]:
     """
     llm = get_llm()
     outputs = state.get("agent_outputs", {})
+    user_intent = state.get("user_intent", "")
     travel_info = outputs.get("travel", {})
     finance_info = outputs.get("finance", {})
     calendar_info = outputs.get("calendar", {})
@@ -373,6 +397,8 @@ def email_agent_node(state: AgentState) -> Dict[str, Any]:
     You are the Email Assistant for LifeOS.
     Prepare a professional draft email itinerary to summarize the user's travel plans.
     
+    User Intent: {user_intent}
+    
     Details:
     - Destination: {city}
     - Date: {travel_date}
@@ -380,6 +406,11 @@ def email_agent_node(state: AgentState) -> Dict[str, Any]:
     - Packing list: {packing}
     - Estimated Budget: Lodging: INR {finance_info.get('lodging')}, Transit: INR {finance_info.get('transit')}, Food: INR {finance_info.get('food')}, Activities: INR {finance_info.get('activities')}. Total: INR {finance_info.get('total')}.
     - Calendar event: {calendar_info.get('summary')} from {calendar_info.get('start_time')} to {calendar_info.get('end_time')}
+    
+    Instructions for JSON fields:
+    1. "to": If the user specified a specific recipient email address in the User Intent above, use that email address. Otherwise, this field MUST be set exactly to "me". DO NOT invent or use placeholder email addresses like "test@example.com" or "user@example.com".
+    2. "subject": Set to "Itinerary Summary: Trip to {city} on {travel_date}"
+    3. "body": Provide a well-structured summary of weather, packing details, estimated finance, and calendar reminder.
     
     Generate a JSON object containing:
     {{

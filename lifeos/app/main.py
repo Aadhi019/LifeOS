@@ -6,7 +6,7 @@ from typing import Dict, Any, List
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from lifeos.app.agents.graph import get_agent_graph, get_content_text
-from lifeos.app.tools.google_services import create_calendar_event, draft_email
+from lifeos.app.tools.google_services import create_calendar_event, send_email
 
 app = FastAPI(title="LifeOS - Personal Chief of Staff API")
 
@@ -105,7 +105,7 @@ async def confirm_endpoint(request: ConfirmRequest):
         # 2. Execute Email Draft Proposal
         if "email" in outputs and not outputs.get("email", {}).get("skipped"):
             em = outputs["email"]
-            email_result = draft_email(
+            email_result = send_email(
                 to=em.get("to", "me"),
                 subject=em.get("subject", "Trip Summary"),
                 body=em.get("body", "")
@@ -132,4 +132,13 @@ async def confirm_endpoint(request: ConfirmRequest):
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "message": "LifeOS Backend is active"}
+    from lifeos.app.tools.google_services import GOOGLE_LIBS_AVAILABLE, CREDENTIALS_PATH, TOKEN_PATH
+    from lifeos.app.config import USE_MOCK_GOOGLE_SERVICES
+    return {
+        "status": "ok", 
+        "message": "LifeOS Backend is active",
+        "GOOGLE_LIBS_AVAILABLE": GOOGLE_LIBS_AVAILABLE,
+        "USE_MOCK_GOOGLE_SERVICES": USE_MOCK_GOOGLE_SERVICES,
+        "CREDENTIALS_PATH_exists": os.path.exists(CREDENTIALS_PATH),
+        "TOKEN_PATH_exists": os.path.exists(TOKEN_PATH)
+    }

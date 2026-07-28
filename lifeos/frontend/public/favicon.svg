@@ -1,12 +1,20 @@
 <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Shadow rect -->
-  <rect x="9" y="9" width="86" height="86" fill="#2A2725" />
-  <!-- Main rect -->
-  <rect x="5" y="5" width="86" height="86" fill="#D95D39" stroke="#2A2725" stroke-width="5" />
-  <!-- Circle -->
-  <circle cx="48" cy="48" r="32" stroke="#ffffff" stroke-width="5" fill="none" />
-  <!-- L shape path -->
-  <path d="M38 32 H44 V56 H58 V61 H38 Z" fill="#ffffff" />
-  <!-- Circle dot -->
-  <circle cx="61" cy="37" r="5.5" fill="#ffffff" />
+  <defs>
+    <linearGradient id="favicon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff416c" />
+      <stop offset="100%" stop-color="#ff4b2b" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded squircle background -->
+  <rect x="5" y="5" width="90" height="90" rx="24" fill="url(#favicon-grad)" />
+  
+  <!-- White Circle -->
+  <circle cx="50" cy="50" r="28" stroke="#ffffff" stroke-width="6" fill="none" />
+  
+  <!-- White L shape path -->
+  <path d="M43 37 V58 H58" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <!-- White dot -->
+  <circle cx="62" cy="43" r="5" fill="#ffffff" />
 </svg>

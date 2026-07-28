@@ -11,6 +11,7 @@ else:
     load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 USE_MOCK_GOOGLE_SERVICES = os.getenv("USE_MOCK_GOOGLE_SERVICES", "false").lower() in ("true", "1", "yes")
 
 if not GEMINI_API_KEY or GEMINI_API_KEY == "your_gemini_api_key_here":
