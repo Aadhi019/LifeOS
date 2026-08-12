@@ -1,5 +1,5 @@
 {
-  "preferred_airline": "British Airways",
+  "preferred_airline": "Virgin Atlantic",
   "preferred_hotel_type": "Budget",
   "meal": "Vegetarian",
   "seat": "Window",
@@ -11,7 +11,12 @@
     "Chennai",
     "Paris",
     "Leh",
-    "London"
+    "London",
+    "Pune",
+    "Delhi",
+    "Agra",
+    "Goa",
+    "Kodaikanal"
   ],
   "travel_style": "Comfort & Efficiency"
 }

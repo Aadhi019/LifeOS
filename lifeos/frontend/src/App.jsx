@@ -107,9 +107,118 @@ function SystemChronometer({ isLoading, agentState }) {
   );
 }
 
+export const TOURIST_SPOTS_DB = {
+  'bangalore': [
+    'Bangalore Palace',
+    'Lalbagh Botanical Garden',
+    'Cubbon Park',
+    'Wonderla Amusement Park',
+    'Nandi Hills'
+  ],
+  'bengaluru': [
+    'Bangalore Palace',
+    'Lalbagh Botanical Garden',
+    'Cubbon Park',
+    'Wonderla Amusement Park',
+    'Nandi Hills'
+  ],
+  'paris': [
+    'Eiffel Tower',
+    'Louvre Museum',
+    'Palace of Versailles',
+    'Seine River Cruise',
+    'Notre-Dame Cathedral'
+  ],
+  'london': [
+    'British Museum',
+    'Tower of London',
+    'London Eye',
+    'Hyde Park',
+    'Buckingham Palace'
+  ],
+  'mumbai': [
+    'Gateway of India',
+    'Marine Drive',
+    'Elephanta Caves',
+    'Juhu Beach',
+    'Chhatrapati Shivaji Maharaj Terminus'
+  ],
+  'chennai': [
+    'Marina Beach',
+    'Kapaleeshwarar Temple',
+    'Government Museum',
+    'VGP Universal Kingdom',
+    'DakshinaChitra'
+  ],
+  'coimbatore': [
+    'Marudhamalai Temple',
+    'Siruvani Waterfalls',
+    'VOC Park and Zoo',
+    'Gass Forest Museum',
+    'Dhyanalinga Temple'
+  ],
+  'kannur': [
+    'Payyambalam Beach',
+    'St. Angelo Fort',
+    'Muzhappilangad Drive-in Beach',
+    'Arakkal Museum',
+    'Parassinikkadavu Muthappan Temple'
+  ],
+  'ooty': [
+    'Ooty Lake',
+    'Government Botanical Garden',
+    'Doddabetta Peak',
+    'Government Rose Garden',
+    'Pykara Waterfalls'
+  ],
+  'coorg': [
+    'Abbey Falls',
+    'Raja\'s Seat',
+    'Dubare Elephant Camp',
+    'Namdroling Monastery (Golden Temple)',
+    'Talakaveri'
+  ],
+  'pondicherry': [
+    'Promenade Beach',
+    'Auroville',
+    'Sri Aurobindo Ashram',
+    'Paradise Beach',
+    'Matrimandir'
+  ],
+  'goa': [
+    'Calangute Beach',
+    'Basilica of Bom Jesus',
+    'Fort Aguada',
+    'Dudhsagar Falls',
+    'Anjuna Flea Market'
+  ],
+  'agra': [
+    'Taj Mahal',
+    'Agra Fort',
+    'Fatehpur Sikri',
+    'Mehtab Bagh',
+    'Tomb of Itimad-ud-Daulah'
+  ]
+};
+
+export const getTouristSpots = (city) => {
+  if (!city) return [];
+  const key = city.trim().toLowerCase();
+  if (TOURIST_SPOTS_DB[key]) return TOURIST_SPOTS_DB[key];
+  return [
+    `${city} Museum & Cultural Center`,
+    `${city} Botanical Park & Gardens`,
+    `Historic ${city} Old Town Square`,
+    `Local Food Tasting tour in ${city}`,
+    `${city} Skyline Viewpoint`
+  ];
+};
+
 export default function App() {
   const [inputText, setInputText] = useState('');
   const [sessionStartTime] = useState(() => new Date());
+  const [selectedSpots, setSelectedSpots] = useState([]);
+  const [packedItems, setPackedItems] = useState([]);
 
   const formatLogTime = (offsetSeconds) => {
     const logTime = new Date(sessionStartTime.getTime() + offsetSeconds * 1000);
@@ -140,6 +249,17 @@ export default function App() {
     preferences: false
   });
 
+  // Flight Recommendations Filtering & Sorting State
+  const [flightClass, setFlightClass] = useState('economy');
+  const [flightSort, setFlightSort] = useState('score');
+  const [flightSortOrder, setFlightSortOrder] = useState('desc');
+  const [flightStopsFilter, setFlightStopsFilter] = useState('all'); // 'all', 'direct', '1stop'
+  const [flightMaxPrice, setFlightMaxPrice] = useState('');
+  const [selectedAirlines, setSelectedAirlines] = useState([]);
+  const [isFlightFiltersOpen, setIsFlightFiltersOpen] = useState(false);
+  const [selectedFlightId, setSelectedFlightId] = useState(null);
+  const [selectedHotelId, setSelectedHotelId] = useState(null);
+
   // Starter prompts
   const starterPrompts = [
     "I'm travelling to Bangalore next Friday",
@@ -166,6 +286,25 @@ export default function App() {
       });
       
       setAgentState(response.data);
+      
+      // Reset selected activities and packing checklist items
+      setSelectedSpots([]);
+      setPackedItems([]);
+      // Set default selected flight and hotel
+      if (response.data.agent_outputs?.flights && response.data.agent_outputs.flights.length > 0) {
+        const firstFlight = response.data.agent_outputs.flights[0];
+        setSelectedFlightId(firstFlight.airline + '_' + firstFlight.price + '_' + firstFlight.departure);
+      } else {
+        setSelectedFlightId(null);
+      }
+      
+      if (response.data.agent_outputs?.hotels && response.data.agent_outputs.hotels.length > 0) {
+        const firstHotel = response.data.agent_outputs.hotels[0];
+        setSelectedHotelId(firstHotel.name + '_' + firstHotel.price);
+      } else {
+        setSelectedHotelId(null);
+      }
+
       setStatusMessage('Workflow completed. Awaiting user approval.');
     } catch (err) {
       console.error(err);
@@ -185,8 +324,22 @@ export default function App() {
     setStatusMessage('Executing automated actions...');
     
     try {
+      // Synchronize selection changes into the email body sent to the backend
+      const updatedState = { ...agentState };
+      const currentOutputs = { ...updatedState.agent_outputs };
+      
+      if (currentOutputs.email) {
+        const selectedFlight = getSelectedFlight();
+        const selectedHotel = getSelectedHotel();
+        currentOutputs.email = {
+          ...currentOutputs.email,
+          body: getUpdatedEmailBody(currentOutputs.email.body, selectedFlight, selectedHotel)
+        };
+      }
+      updatedState.agent_outputs = currentOutputs;
+
       const response = await axios.post(`${API_BASE}/confirm`, {
-        state: agentState
+        state: updatedState
       });
       
       setExecutionResult(response.data);
@@ -211,6 +364,19 @@ export default function App() {
     setInputText('');
     setStatusMessage('System Idle');
     setErrorMessage('');
+    
+    // Reset filters and selection state
+    setFlightClass('economy');
+    setFlightSort('score');
+    setFlightSortOrder('desc');
+    setFlightStopsFilter('all');
+    setFlightMaxPrice('');
+    setSelectedAirlines([]);
+    setIsFlightFiltersOpen(false);
+    setSelectedFlightId(null);
+    setSelectedHotelId(null);
+    setSelectedSpots([]);
+    setPackedItems([]);
   };
 
   // Determine Agent Status
@@ -242,6 +408,198 @@ export default function App() {
     }
     
     return 'idle';
+  };
+
+  const getProcessedFlights = () => {
+    if (!agentState?.agent_outputs?.flights || agentState.agent_outputs.flights.skipped) return [];
+
+    const classMultipliers = {
+      economy: 1.0,
+      premium_economy: 1.5,
+      business: 2.5,
+      first_class: 4.0
+    };
+    const multiplier = classMultipliers[flightClass] || 1.0;
+
+    let list = agentState.agent_outputs.flights.map(f => ({
+      ...f,
+      displayedPrice: Math.round(f.price * multiplier)
+    }));
+
+    // Apply filters
+    if (flightStopsFilter !== 'all') {
+      const maxStops = flightStopsFilter === 'direct' ? 0 : 1;
+      list = list.filter(f => f.stops <= maxStops);
+    }
+    if (flightMaxPrice !== '') {
+      const maxVal = parseFloat(flightMaxPrice);
+      if (!isNaN(maxVal)) {
+        list = list.filter(f => f.displayedPrice <= maxVal);
+      }
+    }
+    if (selectedAirlines.length > 0) {
+      list = list.filter(f => selectedAirlines.includes(f.airline));
+    }
+
+    // Apply sorting
+    list.sort((a, b) => {
+      let valA, valB;
+      if (flightSort === 'price') {
+        valA = a.displayedPrice;
+        valB = b.displayedPrice;
+      } else if (flightSort === 'duration') {
+        valA = a.duration;
+        valB = b.duration;
+      } else if (flightSort === 'rating') {
+        valA = a.rating;
+        valB = b.rating;
+      } else {
+        valA = a.score;
+        valB = b.score;
+      }
+      if (valA < valB) return flightSortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return flightSortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return list;
+  };
+
+  const getSelectedFlight = () => {
+    const list = getProcessedFlights();
+    if (list.length === 0) return null;
+    const match = list.find(f => (f.airline + '_' + f.price + '_' + f.departure) === selectedFlightId);
+    return match || list[0];
+  };
+
+  const getSelectedHotel = () => {
+    const list = agentState?.agent_outputs?.hotels && !agentState.agent_outputs.hotels.skipped ? agentState.agent_outputs.hotels : [];
+    if (list.length === 0) return null;
+    const match = list.find(h => (h.name + '_' + h.price) === selectedHotelId);
+    return match || list[0];
+  };
+
+  const getIataCode = (city) => {
+    if (!city) return '';
+    const mapping = {
+      'bangalore': 'BLR',
+      'bengaluru': 'BLR',
+      'delhi': 'DEL',
+      'new delhi': 'DEL',
+      'mumbai': 'BOM',
+      'chennai': 'MAA',
+      'coimbatore': 'CJB',
+      'kannur': 'CNN',
+      'paris': 'CDG',
+      'london': 'LHR',
+      'singapore': 'SIN',
+      'tokyo': 'NRT',
+      'new york': 'JFK',
+      'hyderabad': 'HYD',
+      'kolkata': 'CCU',
+      'pune': 'PNQ',
+      'kochi': 'COK',
+      'goa': 'GOI',
+      'agra': 'DEL',
+      'ooty': 'CJB',
+      'coorg': 'CNN',
+      'pondicherry': 'MAA'
+    };
+    const key = city.trim().toLowerCase();
+    return mapping[key] || key.substring(0, 3).toUpperCase();
+  };
+
+  const getMakeMyTripFlightUrl = (flight) => {
+    if (!flight) return '';
+    const originIata = getIataCode(flight.origin);
+    const destIata = getIataCode(flight.destination);
+    
+    const travelDate = agentState?.agent_outputs?.travel?.dates || '';
+    let formattedDate = '';
+    if (travelDate) {
+      const parts = travelDate.split('-');
+      if (parts.length === 3) {
+        formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`; // DD/MM/YYYY
+      }
+    }
+    
+    const classMapping = {
+      economy: 'E',
+      premium_economy: 'W',
+      business: 'B',
+      first_class: 'F'
+    };
+    const cabin = classMapping[flightClass] || 'E';
+    
+    if (originIata && destIata && formattedDate) {
+      return `https://www.makemytrip.com/flight/search?itinerary=${originIata}-${destIata}-${formattedDate}&tripType=O&paxType=A-1_C-0_I-0&intl=false&cabinClass=${cabin}`;
+    }
+    
+    return `https://www.makemytrip.com/flight/search?itinerary=${flight.origin}-${flight.destination}&tripType=O`;
+  };
+
+  const getMakeMyTripHotelUrl = (hotel) => {
+    if (!hotel) return '';
+    
+    const checkinStr = agentState?.agent_outputs?.travel?.dates || '';
+    let checkin = '';
+    let checkout = '';
+    
+    if (checkinStr) {
+      const parts = checkinStr.split('-');
+      if (parts.length === 3) {
+        checkin = `${parts[2]}${parts[1]}${parts[0]}`; // DDMMYYYY
+        
+        try {
+          const checkinDateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+          const checkoutDateObj = new Date(checkinDateObj.getTime() + 2 * 24 * 60 * 60 * 1000);
+          
+          const dd = String(checkoutDateObj.getDate()).padStart(2, '0');
+          const mm = String(checkoutDateObj.getMonth() + 1).padStart(2, '0');
+          const yyyy = checkoutDateObj.getFullYear();
+          checkout = `${dd}${mm}${yyyy}`; // DDMMYYYY
+        } catch (e) {
+          checkout = checkin;
+        }
+      }
+    }
+    
+    if (checkin && checkout) {
+      return `https://www.makemytrip.com/hotels/hotel-listing/?searchText=${encodeURIComponent(hotel.name + ', ' + hotel.city)}&checkin=${checkin}&checkout=${checkout}&roomStayQualifier=1e0e&locusType=hotel&country=IN`;
+    }
+    
+    return `https://www.google.com/search?q=${encodeURIComponent('MakeMyTrip hotel ' + hotel.name + ' in ' + hotel.city)}`;
+  };
+
+  const getUpdatedEmailBody = (baseBody, flight, hotel) => {
+    if (!baseBody) return "";
+    
+    // Clean up any old booking links block if it was already appended
+    let cleanedBody = baseBody.split("\n\n--- BOOKING DETAILS ---")[0];
+    cleanedBody = cleanedBody.split("\n\n--- BOOKING LINKS ---")[0];
+    cleanedBody = cleanedBody.split("\n\n--- PLANNED ACTIVITIES ---")[0];
+    
+    let bookingBlock = "\n\n--- BOOKING LINKS ---";
+    
+    if (flight) {
+      const flightUrl = getMakeMyTripFlightUrl(flight);
+      bookingBlock += `\n✈️ Selected Flight: ${flight.airline} (${flight.origin} -> ${flight.destination}) - INR ${flight.displayedPrice.toLocaleString()} (${flightClass.replace('_', ' ')})\n   Book Flight (MakeMyTrip): ${flightUrl}\n`;
+    }
+    
+    if (hotel) {
+      const hotelUrl = getMakeMyTripHotelUrl(hotel);
+      bookingBlock += `\n🏢 Selected Hotel: ${hotel.name} - INR ${hotel.price.toLocaleString()}/night\n   Book Hotel (MakeMyTrip): ${hotelUrl}\n`;
+    }
+
+    if (selectedSpots.length > 0) {
+      bookingBlock += `\n\n--- PLANNED ACTIVITIES ---`;
+      selectedSpots.forEach((spot, i) => {
+        bookingBlock += `\n📍 Day ${i + 1}: ${spot}`;
+      });
+      bookingBlock += `\n`;
+    }
+    
+    return cleanedBody + bookingBlock;
   };
 
   const outputs = agentState?.agent_outputs || {};
@@ -541,23 +899,57 @@ export default function App() {
                         {getAgentStatus('travel')}
                       </span>
                     </div>
-
                     <h4 className="font-title font-bold text-xl text-neutral-700 mb-2">Travel & Packing</h4>
                     
                     {outputs.travel ? (
-                      <div className="space-y-2.5 text-sm">
+                      <div className="space-y-3.5 text-sm">
                         <div className="font-retro-mono font-bold text-(--color-terracotta) flex items-center gap-1.5">
                           <span>📍 {outputs.travel.city} ({outputs.travel.dates})</span>
                         </div>
-                        <div className="panel-neu-inset bg-(--bg-cream) p-3 font-body text-xs leading-relaxed italic text-neutral-600">
-                          "{outputs.travel.weather_summary}"
+                        {/* Weather Forecast Outlook */}
+                        <div className="panel-neu-inset bg-(--bg-cream) p-3 font-body text-xs leading-relaxed text-neutral-600 flex items-start gap-2.5">
+                          <span className="text-2xl mt-0.5 shrink-0 select-none">
+                            {outputs.travel.weather_summary?.toLowerCase().includes('rain') ? '🌧️' :
+                             outputs.travel.weather_summary?.toLowerCase().includes('cloud') ? '⛅' :
+                             outputs.travel.weather_summary?.toLowerCase().includes('drizzle') ? '🌦️' :
+                             outputs.travel.weather_summary?.toLowerCase().includes('wind') ? '💨' : '☀️'}
+                          </span>
+                          <div>
+                            <div className="font-bold text-(--color-terracotta) mb-0.5 uppercase tracking-wide text-[9px] font-retro-mono">Forecast Outlook</div>
+                            <p className="italic">"{outputs.travel.weather_summary}"</p>
+                          </div>
                         </div>
+                        {/* Interactive Packing Checklist */}
                         <div className="text-xs">
-                          <span className="font-bold text-neutral-500 font-retro-mono block mb-1">SUGGESTED PACKING:</span>
-                          <div className="flex flex-wrap gap-1 font-retro-mono">
-                            {outputs.travel.packing_list?.map((item, idx) => (
-                              <span key={idx} className="bg-(--bg-cream) px-2 py-0.5 rounded-full shadow-sm text-xs font-semibold text-neutral-600">{item}</span>
-                            ))}
+                          <span className="font-bold text-neutral-500 font-retro-mono block mb-2 uppercase tracking-wide text-[10px]">Packing Checklist:</span>
+                          <div className="grid grid-cols-2 gap-2 font-retro-mono">
+                            {outputs.travel.packing_list?.map((item, idx) => {
+                              const isPacked = packedItems.includes(item);
+                              return (
+                                <label 
+                                  key={idx} 
+                                  className={`flex items-center gap-2 p-1.5 rounded-xl cursor-pointer transition-all border ${
+                                    isPacked 
+                                      ? 'bg-green-500/10 border-green-500/20 text-neutral-500 line-through' 
+                                      : 'bg-(--bg-cream) border-transparent hover:bg-neutral-50/10 text-neutral-700'
+                                  }`}
+                                >
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isPacked}
+                                    onChange={() => {
+                                      if (isPacked) {
+                                        setPackedItems(packedItems.filter(i => i !== item));
+                                      } else {
+                                        setPackedItems([...packedItems, item]);
+                                      }
+                                    }}
+                                    className="accent-(--color-terracotta) h-3.5 w-3.5 rounded"
+                                  />
+                                  <span className="truncate">{item}</span>
+                                </label>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
@@ -569,7 +961,56 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Finance Agent Card */}
+                {/* Node 01.5 Interactive Sightseeing & Itinerary Planner */}
+                {outputs.travel && (
+                  <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
+                    <div>
+                      <div className="flex justify-between items-start mb-3">
+                        <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                          NODE 01.5 // SIGHTSEEING
+                        </span>
+                        <span className="text-[10px] font-retro-mono font-bold px-2 py-0.5 rounded-full uppercase bg-green-500 text-white shadow-sm">
+                          Completed
+                        </span>
+                      </div>
+
+                      <h4 className="font-title font-bold text-xl text-neutral-700 mb-2">Sightseeing Planner</h4>
+                      
+                      <div className="space-y-2 text-xs font-retro-mono">
+                        <p className="text-neutral-500 mb-2 italic">Select tourist sights to build your Day-by-Day itinerary:</p>
+                        <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                          {getTouristSpots(outputs.travel.city).map((spot, idx) => {
+                            const isChecked = selectedSpots.includes(spot);
+                            return (
+                              <label 
+                                key={idx} 
+                                className={`flex items-center gap-2.5 p-2 rounded-xl cursor-pointer transition-all border ${
+                                  isChecked 
+                                    ? 'panel-neu-inset border-(--color-terracotta)/30 bg-(--bg-cream-dark)/20 font-semibold text-neutral-800' 
+                                    : 'bg-(--bg-cream) border-transparent hover:bg-neutral-50/10 text-neutral-600'
+                                }`}
+                              >
+                                <input 
+                                  type="checkbox" 
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    if (isChecked) {
+                                      setSelectedSpots(selectedSpots.filter(s => s !== spot));
+                                    } else {
+                                      setSelectedSpots([...selectedSpots, spot]);
+                                    }
+                                  }}
+                                  className="accent-(--color-terracotta) h-4 w-4 rounded"
+                                />
+                                <span>{spot}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}                {/* Finance Agent Card */}
                 <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
                   <div>
                     <div className="flex justify-between items-start mb-3">
@@ -635,33 +1076,342 @@ export default function App() {
 
                     <h4 className="font-title font-bold text-xl text-neutral-700 mb-2">Flight Search</h4>
                     
+                    {outputs.flights && !outputs.flights.skipped && (
+                      <div className="mb-4">
+                        {/* Class Selection Tabs */}
+                        <div className="flex justify-between gap-1 p-1 rounded-2xl panel-neu-inset text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-3">
+                          {['economy', 'premium_economy', 'business', 'first_class'].map((cls) => (
+                            <button
+                              key={cls}
+                              onClick={() => setFlightClass(cls)}
+                              className={`flex-1 py-1 rounded-xl transition-all duration-200 cursor-pointer text-center whitespace-nowrap px-1 ${
+                                flightClass === cls
+                                  ? 'text-neutral-800 bg-(--bg-cream) shadow-[2px_2px_4px_rgba(0,0,0,0.06),-2px_-2px_4px_#fff] font-bold'
+                                  : 'hover:text-neutral-700'
+                              }`}
+                            >
+                              {cls.replace('_', ' ')}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Collapsible Filter Toggle */}
+                        <div className="flex justify-between items-center mb-3">
+                          <button
+                            onClick={() => setIsFlightFiltersOpen(!isFlightFiltersOpen)}
+                            className="btn-vintage-pill text-[10px] py-1 px-3 flex items-center gap-1"
+                          >
+                            <span>Filters & Sort</span>
+                            <ChevronDown className={`h-3 w-3 transition-transform ${isFlightFiltersOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                          
+                          {/* Quick Reset */}
+                          {(flightStopsFilter !== 'all' || flightMaxPrice !== '' || selectedAirlines.length > 0 || flightSort !== 'score' || flightSortOrder !== 'desc') && (
+                            <button
+                              onClick={() => {
+                                setFlightStopsFilter('all');
+                                setFlightMaxPrice('');
+                                setSelectedAirlines([]);
+                                setFlightSort('score');
+                                setFlightSortOrder('desc');
+                              }}
+                              className="text-[9px] font-retro-mono text-(--color-terracotta) hover:underline"
+                            >
+                              Reset Filters
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Filter & Sort Drawer */}
+                        {isFlightFiltersOpen && (
+                          <div className="panel-neu-inset p-3 rounded-2xl mb-4 text-xs font-retro-mono text-neutral-600 space-y-3 animate-fade-in">
+                            {/* Sorting */}
+                            <div>
+                              <span className="font-bold text-[10px] uppercase text-neutral-400 block mb-1">Sort By</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {[
+                                  { label: 'Best Match', value: 'score', defaultOrder: 'desc' },
+                                  { label: 'Price', value: 'price', defaultOrder: 'asc' },
+                                  { label: 'Duration', value: 'duration', defaultOrder: 'asc' },
+                                  { label: 'Rating', value: 'rating', defaultOrder: 'desc' }
+                                ].map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    onClick={() => {
+                                      if (flightSort === opt.value) {
+                                        setFlightSortOrder(flightSortOrder === 'asc' ? 'desc' : 'asc');
+                                      } else {
+                                        setFlightSort(opt.value);
+                                        setFlightSortOrder(opt.defaultOrder);
+                                      }
+                                    }}
+                                    className={`py-0.5 px-2 rounded-lg border transition-all text-[10px] font-bold cursor-pointer ${
+                                      flightSort === opt.value
+                                        ? 'bg-neutral-850 text-white border-neutral-850 shadow-sm'
+                                        : 'bg-white/60 text-neutral-600 border-white/60 hover:bg-white'
+                                    }`}
+                                  >
+                                    {opt.label} {flightSort === opt.value ? (flightSortOrder === 'asc' ? '▲' : '▼') : ''}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Max Price & Stops */}
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <span className="font-bold text-[10px] uppercase text-neutral-400 block mb-1">Max Price (INR)</span>
+                                <input
+                                  type="number"
+                                  placeholder="e.g. 50000"
+                                  value={flightMaxPrice}
+                                  onChange={(e) => setFlightMaxPrice(e.target.value)}
+                                  className="w-full p-1 rounded-xl bg-white/60 border border-white/60 text-xs px-2 focus:bg-white focus:outline-none shadow-inner"
+                                />
+                              </div>
+
+                              <div>
+                                <span className="font-bold text-[10px] uppercase text-neutral-400 block mb-1">Stops Limit</span>
+                                <div className="flex gap-1">
+                                  {[
+                                    { label: 'Any', value: 'all' },
+                                    { label: 'Non-stop', value: 'direct' },
+                                    { label: 'Max 1', value: '1stop' }
+                                  ].map((opt) => (
+                                    <button
+                                      key={opt.value}
+                                      onClick={() => setFlightStopsFilter(opt.value)}
+                                      className={`flex-1 py-1 rounded-xl text-[10px] font-bold cursor-pointer transition-all ${
+                                        flightStopsFilter === opt.value
+                                          ? 'bg-neutral-850 text-white shadow-sm'
+                                          : 'bg-white/60 text-neutral-500 border border-white/60 hover:bg-white'
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Airlines Checkboxes */}
+                            <div>
+                              <span className="font-bold text-[10px] uppercase text-neutral-400 block mb-1">Filter Airlines</span>
+                              <div className="flex flex-wrap gap-x-3 gap-y-1.5 p-1.5 bg-white/40 rounded-xl">
+                                {(() => {
+                                  const airlines = outputs.flights ? [...new Set(outputs.flights.map(f => f.airline))] : [];
+                                  return airlines.map((airline) => {
+                                    const checked = selectedAirlines.includes(airline);
+                                    return (
+                                      <label key={airline} className="flex items-center gap-1.5 cursor-pointer text-[10px]">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => {
+                                            if (checked) {
+                                              setSelectedAirlines(selectedAirlines.filter(a => a !== airline));
+                                            } else {
+                                              setSelectedAirlines([...selectedAirlines, airline]);
+                                            }
+                                          }}
+                                          className="rounded border-neutral-300 text-(--color-terracotta) focus:ring-(--color-terracotta)"
+                                        />
+                                        <span>{airline}</span>
+                                      </label>
+                                    );
+                                  });
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Nearby Airport Banner */}
+                    {outputs.airport_info && !outputs.airport_info.has_airport && (
+                      <div className="p-3.5 mb-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-neutral-700 text-xs font-retro-mono flex gap-2.5 items-start shadow-inner">
+                        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-amber-800 mb-0.5">No direct airport facility</div>
+                          <p className="text-[11px] leading-relaxed text-neutral-600">
+                            Showing flights to <strong>{outputs.airport_info.airport_city} ({outputs.airport_info.airport_code})</strong>, 
+                            which is {outputs.airport_info.distance} away from {outputs.travel?.city || 'destination'}. 
+                            Ground transit: {outputs.airport_info.transit_time}.
+                          </p>
+                          {/* Transit Booking Links */}
+                          <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-amber-500/20">
+                            <span className="text-[9px] uppercase font-bold text-amber-800/70 block w-full mb-0.5">Book Ground Transit:</span>
+                            <a 
+                              href={`https://www.google.com/search?q=${encodeURIComponent('MakeMyTrip cab booking from ' + outputs.airport_info.airport_city + ' to ' + (outputs.travel?.city || ''))}`}
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-[10px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 font-bold px-2 py-0.5 rounded-md transition-all"
+                            >
+                              Taxi Cab ↗
+                            </a>
+                            <a 
+                              href={`https://www.redbus.in/search?fromCityName=${encodeURIComponent(outputs.airport_info.airport_city)}&toCityName=${encodeURIComponent(outputs.travel?.city || '')}`}
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-[10px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 font-bold px-2 py-0.5 rounded-md transition-all"
+                            >
+                              redBus Bus ↗
+                            </a>
+                            <a 
+                              href={`https://www.google.com/search?q=${encodeURIComponent('MakeMyTrip trains from ' + outputs.airport_info.airport_city + ' to ' + (outputs.travel?.city || ''))}`}
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-[10px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 font-bold px-2 py-0.5 rounded-md transition-all"
+                            >
+                              IRCTC Train ↗
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {outputs.flights ? (
                       outputs.flights.skipped ? (
-                        <div className="panel-neu-inset p-3 text-xs font-retro-mono text-neutral-500 italic text-center mt-2">
-                          {outputs.flights.reason}
+                        <div className="space-y-3 mt-2">
+                          <div className="panel-neu-inset p-3 text-xs font-retro-mono text-neutral-500 italic text-center">
+                            {outputs.flights.reason}
+                          </div>
+                          {outputs.travel && (
+                            <div className="panel-neu-inset p-3 rounded-2xl bg-(--bg-cream) space-y-2 border border-white/40 shadow-[inset_1px_1px_3px_rgba(0,0,0,0.05)]">
+                              <span className="font-bold font-retro-mono text-neutral-500 block text-[9px] uppercase tracking-wide">Road Trip / Transit Search:</span>
+                              <div className="flex flex-wrap gap-2">
+                                <a 
+                                  href={`https://www.google.com/search?q=${encodeURIComponent('MakeMyTrip cab booking to ' + outputs.travel.city)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 font-bold px-2 py-0.5 rounded-md transition-all"
+                                >
+                                  Book Cab ↗
+                                </a>
+                                <a 
+                                  href={`https://www.redbus.in/`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 font-bold px-2 py-0.5 rounded-md transition-all"
+                                >
+                                  redBus Search ↗
+                                </a>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="space-y-2 pt-3 mt-2 border-t border-white/50">
-                          {outputs.flights.map((flight, idx) => (
-                            <div key={idx} className={`p-3 rounded-2xl font-retro-mono text-xs transition-all mb-2 ${idx === 0 ? 'panel-neu-inset font-semibold' : 'card-vintage shadow-sm bg-(--bg-cream)'}`}>
-                              <div className="flex justify-between font-bold text-neutral-700">
-                                <span>✈️ {flight.airline}</span>
-                                <span className="text-(--color-terracotta)">INR {flight.price}</span>
-                              </div>
-                              <div className="text-neutral-500 text-xs mt-0.5">
-                                {flight.origin && flight.destination && (
-                                  <div className="font-bold text-neutral-600 mb-1 text-[10px] uppercase tracking-wider">
-                                    {flight.origin} ➔ {flight.destination}
+                          {(() => {
+                            const classMultipliers = {
+                              economy: 1.0,
+                              premium_economy: 1.5,
+                              business: 2.5,
+                              first_class: 4.0
+                            };
+                            const multiplier = classMultipliers[flightClass] || 1.0;
+
+                            let list = outputs.flights.map(f => ({
+                              ...f,
+                              displayedPrice: Math.round(f.price * multiplier)
+                            }));
+
+                            // Apply filters
+                            if (flightStopsFilter !== 'all') {
+                              const maxStops = flightStopsFilter === 'direct' ? 0 : 1;
+                              list = list.filter(f => f.stops <= maxStops);
+                            }
+                            if (flightMaxPrice !== '') {
+                              const maxVal = parseFloat(flightMaxPrice);
+                              if (!isNaN(maxVal)) {
+                                list = list.filter(f => f.displayedPrice <= maxVal);
+                              }
+                            }
+                            if (selectedAirlines.length > 0) {
+                              list = list.filter(f => selectedAirlines.includes(f.airline));
+                            }
+                            // Apply sorting
+                            list.sort((a, b) => {
+                              let valA, valB;
+                              if (flightSort === 'price') {
+                                valA = a.displayedPrice;
+                                valB = b.displayedPrice;
+                              } else if (flightSort === 'duration') {
+                                valA = a.duration;
+                                valB = b.duration;
+                              } else if (flightSort === 'rating') {
+                                valA = a.rating;
+                                valB = b.rating;
+                              } else {
+                                valA = a.score;
+                                valB = b.score;
+                              }
+                              if (valA < valB) return flightSortOrder === 'asc' ? -1 : 1;
+                              if (valA > valB) return flightSortOrder === 'asc' ? 1 : -1;
+                              return 0;
+                            });
+
+                            if (list.length === 0) {
+                              return (
+                                <div className="p-4 text-center text-neutral-400 font-retro-mono italic">
+                                  No flights matching active filters.
+                                </div>
+                              );
+                            }
+
+                            return list.map((flight, idx) => {
+                              const flightSig = flight.airline + '_' + flight.price + '_' + flight.departure;
+                              const isSelected = selectedFlightId === flightSig;
+                              const searchUrl = getMakeMyTripFlightUrl(flight);
+                              return (
+                                <div 
+                                  key={idx} 
+                                  onClick={() => setSelectedFlightId(flightSig)}
+                                  className={`p-3.5 rounded-2xl font-retro-mono text-xs transition-all mb-2 cursor-pointer border ${
+                                    isSelected 
+                                      ? 'panel-neu-inset border-(--color-terracotta)/40 shadow-[inset_2px_2px_5px_rgba(0,0,0,0.08)] bg-(--bg-cream-dark)/30 font-semibold' 
+                                      : 'card-vintage shadow-sm border-transparent hover:bg-neutral-50/20'
+                                  }`}
+                                >
+                                  <div className="flex justify-between items-start font-bold text-neutral-700 mb-1">
+                                    <span className="flex items-center gap-1.5 flex-wrap min-w-0 mr-2">
+                                      <span className="truncate">✈️ {flight.airline}</span>
+                                      {isSelected && (
+                                        <span className="text-[9px] uppercase font-bold tracking-wider text-(--color-terracotta) bg-(--color-terracotta)/10 px-1.5 py-0.5 rounded-md animate-fade-in shadow-inner shrink-0">
+                                          Selected
+                                        </span>
+                                      )}
+                                    </span>
+                                    <span className="text-(--color-terracotta) shrink-0 text-right">
+                                      INR {flight.displayedPrice.toLocaleString()} 
+                                      <span className="text-[9px] font-normal text-neutral-450 ml-1">
+                                        ({flightClass.replace('_', ' ')})
+                                      </span>
+                                    </span>
                                   </div>
-                                )}
-                                {flight.departure} → {flight.arrival} ({flight.duration}h) • {flight.stops} stop(s)
-                              </div>
-                              <div className="flex justify-between text-xs mt-2 text-neutral-450 pt-1.5 border-t border-white/40">
-                                <span>Rating: {flight.rating}⭐</span>
-                                <span className="font-bold text-neutral-500">Score: {flight.score}</span>
-                              </div>
-                            </div>
-                          ))}
+                                  <div className="text-neutral-500 text-xs mt-1.5">
+                                    {flight.origin && flight.destination && (
+                                      <div className="font-bold text-neutral-600 mb-1 text-[10px] uppercase tracking-wider">
+                                        {flight.origin} ➔ {flight.destination}
+                                      </div>
+                                    )}
+                                    {flight.departure} → {flight.arrival} ({flight.duration}h) • {flight.stops} stop(s)
+                                  </div>
+                                  <div className="flex justify-between items-center text-xs mt-3.5 text-neutral-450 pt-2 border-t border-white/40">
+                                    <span>Rating: {flight.rating}⭐ • Score: {flight.score}</span>
+                                    <a 
+                                      href={searchUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-(--color-terracotta) hover:underline font-bold text-[10px] uppercase flex items-center gap-0.5"
+                                    >
+                                      Book on MakeMyTrip ↗
+                                    </a>
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
                         </div>
                       )
                     ) : (
@@ -696,27 +1446,56 @@ export default function App() {
                           {outputs.hotels.reason}
                         </div>
                       ) : (
-                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1 pt-3 mt-2 border-t border-white/50">
-                          {outputs.hotels.map((hotel, idx) => (
-                            <div key={idx} className="p-3 rounded-2xl font-retro-mono text-xs card-vintage bg-(--bg-cream) space-y-1.5 mb-2 shadow-sm">
-                              <div className="flex justify-between font-bold text-neutral-700">
-                                <span>🏢 {hotel.name}</span>
-                                <span>INR {hotel.price}/night</span>
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-3 pt-3 mt-2 border-t border-white/50">
+                          {outputs.hotels.map((hotel, idx) => {
+                            const hotelSig = hotel.name + '_' + hotel.price;
+                            const isSelected = selectedHotelId === hotelSig;
+                            const searchUrl = getMakeMyTripHotelUrl(hotel);
+
+                            return (
+                              <div 
+                                key={idx} 
+                                onClick={() => setSelectedHotelId(hotelSig)}
+                                className={`p-3.5 rounded-2xl font-retro-mono text-xs transition-all mb-2 cursor-pointer border ${
+                                  isSelected 
+                                    ? 'panel-neu-inset border-(--color-terracotta)/40 shadow-[inset_2px_2px_5px_rgba(0,0,0,0.08)] bg-(--bg-cream-dark)/30 font-semibold' 
+                                    : 'card-vintage shadow-sm border-transparent hover:bg-neutral-50/20 bg-(--bg-cream)'
+                                }`}
+                              >
+                                <div className="flex justify-between items-start font-bold text-neutral-700 mb-1">
+                                  <span className="flex items-center gap-1.5 flex-wrap min-w-0 mr-2">
+                                    <span className="truncate">🏢 {hotel.name}</span>
+                                    {isSelected && (
+                                      <span className="text-[9px] uppercase font-bold tracking-wider text-(--color-terracotta) bg-(--color-terracotta)/10 px-1.5 py-0.5 rounded-md animate-fade-in shadow-inner shrink-0">
+                                        Selected
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className="shrink-0 text-right">INR {hotel.price.toLocaleString()}/night</span>
+                                </div>
+                                <div className="text-neutral-500 text-xs mt-1">
+                                  Category: {hotel.category} • Dist: {hotel.distance}km • Safety: {hotel.safety_score}/100
+                                </div>
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {hotel.amenities?.map((am, i) => (
+                                    <span key={i} className="text-[10px] px-2 py-0.5 bg-(--bg-cream) rounded-full shadow-sm text-neutral-600">{am}</span>
+                                  ))}
+                                </div>
+                                <div className="flex justify-between items-center text-xs text-neutral-400 border-t border-white/40 pt-2 mt-3.5">
+                                  <span>Rating: {hotel.rating}⭐ • Score: {hotel.overall_score}</span>
+                                  <a 
+                                    href={searchUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-(--color-terracotta) hover:underline font-bold text-[10px] uppercase flex items-center gap-0.5"
+                                  >
+                                    Book on MakeMyTrip ↗
+                                  </a>
+                                </div>
                               </div>
-                              <div className="text-neutral-500 text-xs">
-                                Category: {hotel.category} • Dist: {hotel.distance}km • Safety: {hotel.safety_score}/100
-                              </div>
-                              <div className="flex flex-wrap gap-1">
-                                {hotel.amenities?.map((am, i) => (
-                                  <span key={i} className="text-[10px] px-2 py-0.5 bg-(--bg-cream) rounded-full shadow-sm text-neutral-600">{am}</span>
-                                ))}
-                              </div>
-                              <div className="flex justify-between text-xs text-neutral-400 border-t border-white/40 pt-1.5 mt-1">
-                                <span>Rating: {hotel.rating}⭐</span>
-                                <span className="font-bold text-(--color-olive)">Score: {hotel.overall_score}</span>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )
                     ) : (
@@ -760,6 +1539,101 @@ export default function App() {
                             <span className="font-bold">INR {outputs.optimized_budget.savings}</span>
                           </div>
                         </div>
+
+                        {(() => {
+                          const budgetLimit = agentState?.agent_outputs?.memory?.budget || 25000;
+                          const flightObj = getSelectedFlight();
+                          const hotelObj = getSelectedHotel();
+                          
+                          const flightCost = flightObj ? flightObj.displayedPrice : 0;
+                          const hotelCost = hotelObj ? (hotelObj.price * 3) : 0;
+                          const activityCost = selectedSpots.length * 1500;
+                          
+                          const hasWarning = outputs.airport_info && !outputs.airport_info.has_airport;
+                          const transitCost = hasWarning ? 2000 : 0;
+                          
+                          const totalSelectedCost = flightCost + hotelCost + activityCost + transitCost;
+                          const percent = Math.min(Math.round((totalSelectedCost / budgetLimit) * 100), 200);
+                          
+                          // Donut properties
+                          const radius = 30;
+                          const circumference = 2 * Math.PI * radius;
+                          const strokeDashoffset = circumference - (Math.min(percent, 100) / 100) * circumference;
+                          
+                          // Colors based on percentage
+                          const gaugeColor = percent > 100 ? 'stroke-red-500' : percent > 85 ? 'stroke-amber-500' : 'stroke-emerald-500';
+                          const textColor = percent > 100 ? 'text-red-600' : percent > 85 ? 'text-amber-600' : 'text-emerald-600';
+
+                          return (
+                            <div className="panel-neu-inset bg-(--bg-cream) p-4 rounded-2xl space-y-4 shadow-[inset_1px_1px_3px_rgba(0,0,0,0.05)] border border-white/40">
+                              <div className="flex items-center gap-4">
+                                {/* SVG Donut Chart */}
+                                <div className="relative h-16 w-16 shrink-0">
+                                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
+                                    <circle cx="40" cy="40" r={radius} stroke="#e5e7eb" strokeWidth="6" fill="transparent" />
+                                    <circle 
+                                      cx="40" 
+                                      cy="40" 
+                                      r={radius} 
+                                      className={`transition-all duration-500 ${gaugeColor}`} 
+                                      strokeWidth="6" 
+                                      strokeDasharray={circumference} 
+                                      strokeDashoffset={strokeDashoffset} 
+                                      strokeLinecap="round" 
+                                      fill="transparent" 
+                                    />
+                                  </svg>
+                                  <div className="absolute inset-0 flex flex-col items-center justify-center font-retro-mono text-center">
+                                    <span className={`text-[11px] font-bold ${textColor}`}>{percent}%</span>
+                                    <span className="text-[6px] text-neutral-450 uppercase font-bold tracking-wide">Used</span>
+                                  </div>
+                                </div>
+                                
+                                {/* Quick budget stats */}
+                                <div className="flex-1 text-xs space-y-1 font-retro-mono">
+                                  <div className="flex justify-between">
+                                    <span className="text-neutral-450 uppercase text-[9px]">TOTAL BUDGET:</span>
+                                    <span className="font-bold text-neutral-700">INR {budgetLimit.toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-neutral-450 uppercase text-[9px]">SELECTED COST:</span>
+                                    <span className={`font-bold ${textColor}`}>INR {totalSelectedCost.toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-[9px] pt-1.5 border-t border-dashed border-neutral-350 mt-1">
+                                    {percent > 100 ? (
+                                      <span className="text-red-500 font-bold uppercase tracking-wide animate-pulse">⚠️ OVER BUDGET LIMIT</span>
+                                    ) : (
+                                      <span className="text-emerald-600 font-bold uppercase tracking-wide">✓ WITHIN BUDGET LIMIT</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Cost allocation breakdown */}
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[9px] font-retro-mono pt-2 border-t border-white/50">
+                                <div className="flex items-center gap-1.5 text-neutral-600 min-w-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-(--color-terracotta) shrink-0"></span>
+                                  <span className="truncate">Flights: INR {flightCost.toLocaleString()}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-neutral-600 min-w-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-(--color-olive) shrink-0"></span>
+                                  <span className="truncate">Lodging: INR {hotelCost.toLocaleString()}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-neutral-600 min-w-0 col-span-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
+                                  <span className="truncate">Activities: INR {activityCost.toLocaleString()} ({selectedSpots.length} spots)</span>
+                                </div>
+                                {transitCost > 0 && (
+                                  <div className="flex items-center gap-1.5 text-neutral-600 min-w-0 col-span-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                                    <span className="truncate">Ground Transit: INR {transitCost.toLocaleString()}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         <div className="panel-neu-inset bg-(--bg-cream) p-3 rounded-2xl">
                           <span className="font-bold block text-[10px] text-neutral-500 uppercase mb-1.5">TRIMMING STRATEGIES:</span>
                           <ul className="list-disc pl-4 space-y-1 text-neutral-600 leading-relaxed text-xs">
@@ -1003,8 +1877,8 @@ export default function App() {
                           <div><span className="text-neutral-500">TO:</span> <span className="font-bold text-neutral-700">{outputs.email.to}</span></div>
                           <div><span className="text-neutral-500">SUBJ:</span> <span className="font-bold text-neutral-700">{outputs.email.subject}</span></div>
                         </div>
-                        <div className="panel-neu-inset p-3 text-xs font-retro-mono max-h-24 overflow-y-auto whitespace-pre-line text-neutral-650 bg-(--bg-cream)">
-                          {outputs.email.body}
+                        <div className="panel-neu-inset p-3 text-xs font-retro-mono max-h-48 overflow-y-auto whitespace-pre-line text-neutral-650 bg-(--bg-cream)">
+                          {getUpdatedEmailBody(outputs.email.body, getSelectedFlight(), getSelectedHotel())}
                         </div>
                       </div>
                     ) : (

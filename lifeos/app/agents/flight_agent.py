@@ -121,6 +121,81 @@ def fetch_real_flights_via_search(origin: str, destination: str, date_str: str) 
         print(f"Error fetching real-time flights from DDGS: {e}")
         return []
 
+NEARBY_AIRPORT_LOOKUP = {
+    "ooty": {
+        "has_airport": False,
+        "airport_city": "Coimbatore",
+        "airport_code": "CJB",
+        "distance": "88 km",
+        "transit_time": "2.5 hours via taxi/bus",
+        "note": "Coimbatore Airport (CJB) is the nearest commercial airport to Ooty."
+    },
+    "coorg": {
+        "has_airport": False,
+        "airport_city": "Kannur",
+        "airport_code": "CNN",
+        "distance": "110 km",
+        "transit_time": "3 hours via taxi",
+        "note": "Kannur International Airport (CNN) is the nearest commercial airport to Coorg."
+    },
+    "pondicherry": {
+        "has_airport": False,
+        "airport_city": "Chennai",
+        "airport_code": "MAA",
+        "distance": "150 km",
+        "transit_time": "3.5 hours via taxi/bus",
+        "note": "Chennai International Airport (MAA) is the nearest major airport to Pondicherry."
+    }
+}
+
+def resolve_destination_airport(destination: str) -> Dict[str, Any]:
+    """
+    Checks if the destination has a commercial passenger airport.
+    If not, finds the nearest city/airport and calculates distance/ground transit time.
+    """
+    dest_lower = destination.strip().lower()
+    if dest_lower in NEARBY_AIRPORT_LOOKUP:
+        return NEARBY_AIRPORT_LOOKUP[dest_lower]
+        
+    from lifeos.app.agents.graph import get_llm, extract_json
+    llm = get_llm()
+    prompt = f"""
+    You are a travel geolocator assistant.
+    Analyze the destination: "{destination}"
+    Determine:
+    1. Does this destination have a commercial airport facility with active passenger flights?
+    2. If not, what is the nearest city with a major commercial passenger airport? 
+       Estimate the road distance (in km) and the typical ground transit time (e.g. taxi/bus/train) from that airport to the destination.
+    
+    Return ONLY a JSON object:
+    {{
+      "has_airport": true_or_false,
+      "airport_city": "City Name of the airport (or same as destination if has_airport is true)",
+      "airport_code": "IATA Code if known, e.g. CJB, or empty string",
+      "distance": "Distance description, e.g. '88 km' or null if it has its own airport",
+      "transit_time": "Ground transit description, e.g. '2.5 hours via taxi' or null if it has its own airport",
+      "note": "Short explanation, e.g. 'Coimbatore Airport (CJB) is the nearest airport to Ooty.'"
+    }}
+    """
+    try:
+        from langchain_core.messages import HumanMessage
+        res = llm.invoke([HumanMessage(content=prompt)])
+        data = extract_json(res.content)
+        if isinstance(data, dict) and "has_airport" in data:
+            return data
+    except Exception as e:
+        print(f"Error resolving destination airport: {e}")
+    
+    # Fallback to defaults
+    return {
+        "has_airport": True,
+        "airport_city": destination,
+        "airport_code": "",
+        "distance": None,
+        "transit_time": None,
+        "note": ""
+    }
+
 def process(state: AgentState) -> AgentState:
     """
     Flight Search Agent node.
@@ -143,8 +218,16 @@ def process(state: AgentState) -> AgentState:
     preferred_airline = memory_info.get("preferred_airline", "IndiGo")
     home_city = memory_info.get("home_city", "Bangalore")
     
+    # Resolve nearest airport if the destination does not have commercial airport facility
+    airport_res = resolve_destination_airport(destination)
+    outputs["airport_info"] = airport_res
+    
+    search_destination = destination
+    if not airport_res.get("has_airport", True) and airport_res.get("airport_city"):
+        search_destination = airport_res["airport_city"]
+    
     # Attempt real-time flight search
-    search_results = fetch_real_flights_via_search(home_city, destination, travel_date)
+    search_results = fetch_real_flights_via_search(home_city, search_destination, travel_date)
     flight_data = []
     
     if search_results:
@@ -156,7 +239,7 @@ def process(state: AgentState) -> AgentState:
         llm = get_llm()
         prompt = f"""
         You are the Flight Search Agent for LifeOS.
-        Below are real web search results about flights from {home_city} to {destination} on {travel_date}:
+        Below are real web search results about flights from {home_city} to {search_destination} on {travel_date}:
         {search_text}
         
         Analyze the search results. Identify and extract at least 3-4 real, specific flight options.
@@ -165,7 +248,7 @@ def process(state: AgentState) -> AgentState:
         If prices are mentioned in the results, use them. If not, estimate realistic prices (convert USD/EUR/GBP to INR: 1 USD ≈ 85 INR, 1 EUR ≈ 92 INR, 1 GBP ≈ 110 INR).
         Return ONLY a JSON list of flights, where each flight item includes all fields:
         - origin: The starting city name (e.g., '{home_city}')
-        - destination: The target arrival city name (e.g., '{destination}')
+        - destination: The target arrival city name (e.g., '{search_destination}')
         - airline: The actual operating airline name (e.g., 'IndiGo', 'Air India', 'Air France', etc.)
         - price: integer (price in INR)
         - duration: float representing duration in hours (e.g. 2.5 or 11.5)
@@ -178,7 +261,7 @@ def process(state: AgentState) -> AgentState:
         [
           {{
             "origin": "{home_city}",
-            "destination": "{destination}",
+            "destination": "{search_destination}",
             "airline": "Airline Name",
             "price": price_integer,
             "duration": duration_float,
@@ -196,7 +279,7 @@ def process(state: AgentState) -> AgentState:
                 # Sanitize extracted fields to match required types for ranking
                 for f in extracted:
                     f["origin"] = str(f.get("origin") or home_city).strip()
-                    f["destination"] = str(f.get("destination") or destination).strip()
+                    f["destination"] = str(f.get("destination") or search_destination).strip()
                     try:
                         f["price"] = int(float(str(f.get("price", 10000)).replace(",", "").strip()))
                     except Exception:
@@ -217,9 +300,9 @@ def process(state: AgentState) -> AgentState:
     # Fallback to mock data if real-time search was empty or failed
     if not flight_data:
         all_flights = load_mock_flights()
-        filtered = [f for f in all_flights if f["destination"].lower() == destination.lower()]
+        filtered = [f for f in all_flights if f["destination"].lower() == search_destination.lower()]
         if not filtered:
-            filtered = generate_dynamic_flights(home_city, destination, travel_date)
+            filtered = generate_dynamic_flights(home_city, search_destination, travel_date)
         flight_data = filtered
         
     # Rank the flights (real-time or fallback)
