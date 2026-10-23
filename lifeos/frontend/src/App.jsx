@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { 
   Plane, 
@@ -24,8 +24,26 @@ import {
   User,
   TrendingDown,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Mic,
+  MicOff,
+  QrCode,
+  Printer,
+  ShieldAlert,
+  Receipt,
+  Navigation,
+  Volume2,
+  Brain
 } from 'lucide-react';
+
+import JourneyMap from './components/JourneyMap';
+import AudioBriefing from './components/AudioBriefing';
+import DigitalPassModal from './components/DigitalPassModal';
+import AgentWarRoom from './components/AgentWarRoom';
+import ConflictReschedulerModal from './components/ConflictReschedulerModal';
+import EmergencyKitCard from './components/EmergencyKitCard';
+import ExpenseTracker from './components/ExpenseTracker';
+import MessengerDispatchModal from './components/MessengerDispatchModal';
 
 const API_BASE = 'http://localhost:8000/api';
 
@@ -220,6 +238,15 @@ export default function App() {
   const [selectedSpots, setSelectedSpots] = useState([]);
   const [packedItems, setPackedItems] = useState([]);
 
+  // Voice Recognition (Speech-to-Text) State
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(() => {
+    return typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  });
+  const [speechError, setSpeechError] = useState('');
+  const recognitionRef = useRef(null);
+  const textBeforeSpeechRef = useRef('');
+
   const formatLogTime = (offsetSeconds) => {
     const logTime = new Date(sessionStartTime.getTime() + offsetSeconds * 1000);
     const tzoffset = logTime.getTimezoneOffset() * 60000;
@@ -238,6 +265,11 @@ export default function App() {
 
   // Active navigation tab state
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Executive Modals State
+  const [isPassModalOpen, setIsPassModalOpen] = useState(false);
+  const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
+  const [isMessengerModalOpen, setIsMessengerModalOpen] = useState(false);
 
   // Collapsible cards toggle state
   const [collapsedCards, setCollapsedCards] = useState({
@@ -319,12 +351,122 @@ export default function App() {
     "Travelling to London next Monday, draft details"
   ];
 
+  // Cleanup speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          if (recognitionRef.current.abort) {
+            recognitionRef.current.abort();
+          } else {
+            recognitionRef.current.stop();
+          }
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
+  const toggleVoiceInput = () => {
+    const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (!SpeechRecognition) {
+      setSpeechSupported(false);
+      setSpeechError('Voice recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      setSpeechError('');
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      textBeforeSpeechRef.current = inputText;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setSpeechError('');
+      };
+
+      recognition.onresult = (event) => {
+        let accumulatedFinal = '';
+        let accumulatedInterim = '';
+
+        for (let i = 0; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            accumulatedFinal += item[0].transcript;
+          } else {
+            accumulatedInterim += item[0].transcript;
+          }
+        }
+
+        const base = textBeforeSpeechRef.current ? textBeforeSpeechRef.current.trim() : '';
+        const spoken = (accumulatedFinal + (accumulatedInterim ? ' ' + accumulatedInterim : '')).trim();
+
+        if (spoken) {
+          const combined = base ? `${base} ${spoken}` : spoken;
+          setInputText(combined);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition notice:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setSpeechError('Microphone permission denied. Please allow microphone access in your browser.');
+        } else if (event.error === 'no-speech') {
+          setSpeechError('No speech detected. Please speak closer to your microphone.');
+        } else if (event.error === 'audio-capture') {
+          setSpeechError('No microphone detected. Please check your audio input device.');
+        } else if (event.error === 'network') {
+          setSpeechError('Network error during voice recognition.');
+        } else if (event.error !== 'aborted') {
+          setSpeechError(`Voice input notice: ${event.error}`);
+        }
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error('Failed to start speech recognition:', err);
+      setSpeechError('Unable to start microphone voice input.');
+      setIsListening(false);
+    }
+  };
+
   const handleStarterClick = (prompt) => {
+    if (isListening && recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+      setIsListening(false);
+    }
     setInputText(prompt);
   };
 
   const handleChatSubmit = async (e) => {
     if (e) e.preventDefault();
+    if (isListening && recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+      setIsListening(false);
+    }
     if (!inputText.trim()) return;
 
     setIsLoading(true);
@@ -360,6 +502,31 @@ export default function App() {
       }
 
       setStatusMessage('Workflow completed. Awaiting user approval.');
+
+      // Auto-dispatch status alert to Telegram if enabled
+      try {
+        const tgAuto = localStorage.getItem('lifeos_tg_auto_notify') === 'true';
+        const tgToken = localStorage.getItem('lifeos_tg_bot_token');
+        const tgChat = localStorage.getItem('lifeos_tg_chat_id');
+        const tripOutputs = response.data.agent_outputs || {};
+        if (tgAuto && tgToken && tgChat && tripOutputs.travel) {
+          axios.post(`${API_BASE}/dispatch/telegram`, {
+            bot_token: tgToken,
+            chat_id: tgChat,
+            trip_data: {
+              city: tripOutputs.travel?.city,
+              dates: tripOutputs.travel?.dates,
+              weather: tripOutputs.travel?.weather,
+              packing: tripOutputs.travel?.packing,
+              hotel: tripOutputs.hotels?.[0]?.name || 'Executive Lodging',
+              flight: tripOutputs.flights?.[0]?.airline || 'Commercial Air',
+              total_budget: tripOutputs.finance?.total ? `INR ${tripOutputs.finance.total}` : 'Pending'
+            }
+          }).catch(e => console.warn('Auto-notify Telegram background warning:', e));
+        }
+      } catch (autoErr) {
+        console.warn('Auto-dispatch check warning:', autoErr);
+      }
     } catch (err) {
       console.error(err);
       const detail = err.response?.data?.detail || err.message;
@@ -517,6 +684,10 @@ export default function App() {
   };
 
   const handleReset = () => {
+    if (isListening && recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+      setIsListening(false);
+    }
     setAgentState(null);
     setExecutionResult(null);
     setInputText('');
@@ -762,23 +933,39 @@ export default function App() {
     let cleanedBody = baseBody.split("\n\n--- BOOKING DETAILS ---")[0];
     cleanedBody = cleanedBody.split("\n\n--- BOOKING LINKS ---")[0];
     cleanedBody = cleanedBody.split("\n\n--- PLANNED ACTIVITIES ---")[0];
+    cleanedBody = cleanedBody.split("\n\nCONFIRMED RESERVATIONS & BOOKING DETAILS")[0];
+    cleanedBody = cleanedBody.split("\n\nSCHEDULED ITINERARY & SIGHTSEEING")[0];
+    cleanedBody = cleanedBody.split("\n\nRESERVATIONS & BOOKING DETAILS")[0];
+    cleanedBody = cleanedBody.split("\n\nPLANNED ITINERARY & ACTIVITIES")[0];
+
+    // Strip out markdown asterisks and residual emojis for a formal appearance
+    cleanedBody = cleanedBody
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/^#+\s*/gm, '')
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+      .replace(/^(Hi|Hello|Hi there),?\s*$/gim, 'Dear Traveler,')
+      .replace(/^Here is the summary of your upcoming trip.*?:/gim, 'Please find detailed below your official travel briefing and confirmed itinerary:')
+      .replace(/^Have a (great|safe and wonderful|wonderful and safe) trip!?/gim, 'Should you require adjustments to your itinerary or further arrangements, please let us know.')
+      .replace(/(Best regards|Warm regards|Regards),?\s*\n(Your )?LifeOS (Email )?Assistant/gi, 'Sincerely,\nExecutive Travel Operations | LifeOS')
+      .trim();
     
-    let bookingBlock = "\n\n--- BOOKING LINKS ---";
+    let bookingBlock = "\n\nCONFIRMED RESERVATIONS & BOOKING DETAILS\n" + "-".repeat(45);
     
     if (flight) {
       const flightUrl = getMakeMyTripFlightUrl(flight);
-      bookingBlock += `\n✈️ Selected Flight: ${flight.airline} (${flight.origin} -> ${flight.destination}) - INR ${flight.displayedPrice.toLocaleString()} (${flightClass.replace('_', ' ')})\n   Book Flight (MakeMyTrip): ${flightUrl}\n`;
+      bookingBlock += `\n• Flight Option: ${flight.airline} (${flight.origin} → ${flight.destination}) | INR ${flight.displayedPrice.toLocaleString()} (${flightClass.replace('_', ' ')})\n  Reservation Link: ${flightUrl}\n`;
     }
     
     if (hotel) {
       const hotelUrl = getMakeMyTripHotelUrl(hotel);
-      bookingBlock += `\n🏢 Selected Hotel: ${hotel.name} - INR ${hotel.price.toLocaleString()}/night\n   Book Hotel (MakeMyTrip): ${hotelUrl}\n`;
+      bookingBlock += `\n• Accommodation: ${hotel.name} | INR ${hotel.price.toLocaleString()} per night\n  Reservation Link: ${hotelUrl}\n`;
     }
 
     if (selectedSpots.length > 0) {
-      bookingBlock += `\n\n--- PLANNED ACTIVITIES ---`;
+      bookingBlock += `\nSCHEDULED ITINERARY & SIGHTSEEING\n` + "-".repeat(45);
       selectedSpots.forEach((spot, i) => {
-        bookingBlock += `\n📍 Day ${i + 1}: ${spot}`;
+        bookingBlock += `\n• Day ${i + 1}: ${spot}`;
       });
       bookingBlock += `\n`;
     }
@@ -818,10 +1005,10 @@ export default function App() {
           </div>
 
           {/* Navigation/Status placeholder (Neumorphic Tabs) */}
-          <div className="flex items-center gap-2 my-4 md:my-0 px-4 py-2 rounded-full panel-neu-inset text-xs font-bold uppercase tracking-wider text-neutral-500">
+          <div className="flex flex-wrap items-center gap-1.5 my-4 md:my-0 p-1.5 rounded-full panel-neu-inset text-xs font-bold uppercase tracking-wider text-neutral-500">
             <button 
               onClick={() => setActiveTab('dashboard')}
-              className={`px-4 py-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer ${
                 activeTab === 'dashboard' 
                   ? 'text-neutral-800 bg-(--bg-cream) shadow-[3px_3px_6px_rgba(0,0,0,0.06),-3px_-3px_6px_#fff] font-bold' 
                   : 'hover:text-neutral-700'
@@ -831,28 +1018,71 @@ export default function App() {
             </button>
             <button 
               onClick={() => setActiveTab('pipeline')}
-              className={`px-4 py-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer ${
                 activeTab === 'pipeline' 
                   ? 'text-neutral-800 bg-(--bg-cream) shadow-[3px_3px_6px_rgba(0,0,0,0.06),-3px_-3px_6px_#fff] font-bold' 
                   : 'hover:text-neutral-700'
               }`}
             >
-              Pipeline Flow
+              War Room
+            </button>
+            <button 
+              onClick={() => setActiveTab('ledger')}
+              className={`px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                activeTab === 'ledger' 
+                  ? 'text-neutral-800 bg-(--bg-cream) shadow-[3px_3px_6px_rgba(0,0,0,0.06),-3px_-3px_6px_#fff] font-bold' 
+                  : 'hover:text-neutral-700'
+              }`}
+            >
+              Expense Ledger
+            </button>
+            <button 
+              onClick={() => setActiveTab('emergency')}
+              className={`px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                activeTab === 'emergency' 
+                  ? 'text-neutral-800 bg-(--bg-cream) shadow-[3px_3px_6px_rgba(0,0,0,0.06),-3px_-3px_6px_#fff] font-bold' 
+                  : 'hover:text-neutral-700'
+              }`}
+            >
+              Emergency Kit
             </button>
             <button 
               onClick={() => setActiveTab('logs')}
-              className={`px-4 py-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer ${
                 activeTab === 'logs' 
                   ? 'text-neutral-800 bg-(--bg-cream) shadow-[3px_3px_6px_rgba(0,0,0,0.06),-3px_-3px_6px_#fff] font-bold' 
                   : 'hover:text-neutral-700'
               }`}
             >
-              Agent logs
+              System Logs
             </button>
           </div>
 
-          {/* Real-time Status Tracker */}
+          {/* Real-time Status Tracker & Executive Quick Actions */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* WhatsApp / Telegram Live Tracker Bot */}
+            <button
+              type="button"
+              onClick={() => setIsMessengerModalOpen(true)}
+              className="btn-vintage flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-retro-mono font-bold text-sky-600 dark:text-sky-400 bg-sky-500/10 border border-sky-500/30 hover:bg-sky-500/20 cursor-pointer shadow-xs transition-all"
+              title="Track live workflow status on Telegram & WhatsApp"
+            >
+              <Send className="w-3.5 h-3.5 text-sky-500 -rotate-12" />
+              <span>TRACKING BOT</span>
+            </button>
+
+            {agentState && (
+              <button
+                type="button"
+                onClick={() => setIsPassModalOpen(true)}
+                className="btn-vintage flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-retro-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 cursor-pointer shadow-xs transition-all"
+                title="Open Official Boarding Pass & Print PDF Dossier"
+              >
+                <QrCode className="w-3.5 h-3.5 text-amber-500" />
+                <span>BOARDING PASS // PDF</span>
+              </button>
+            )}
+
             <div className="flex items-center gap-3 py-2 px-4 rounded-full panel-neu-inset font-retro-mono text-xs font-bold">
               <span className="relative flex h-2.5 w-2.5">
                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
@@ -900,11 +1130,19 @@ export default function App() {
           
           {activeTab === 'dashboard' && (
             <>
-              {/* LEFT PANEL (Main Console, Pipeline & Reports) */}
-              <div className="lg:col-span-2 space-y-8">
-            
-            {/* Task Orchestrator Form Panel */}
-            <div className="card-vintage p-6 relative overflow-hidden">
+            {/* LEFT PANEL (Main Console, Pipeline & Reports) */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Executive Voice Audio Briefing Bar */}
+              {agentState && (
+                <AudioBriefing 
+                  agentState={agentState} 
+                  selectedFlight={getSelectedFlight()} 
+                  selectedHotel={getSelectedHotel()} 
+                />
+              )}
+
+              {/* Task Orchestrator Form Panel */}
+              <div className="card-vintage p-6 relative overflow-hidden">
               <div className="mb-4">
                 <span className="text-xs font-retro-mono font-bold uppercase tracking-wider text-(--color-terracotta) block mb-1">
                   FEATURED WORKSPACE
@@ -919,17 +1157,113 @@ export default function App() {
 
               <form onSubmit={handleChatSubmit} className="space-y-4">
                 <div className="relative panel-neu-inset p-1 bg-(--bg-cream)">
+                  {isListening && (
+                    <div className="flex items-center justify-between px-4 py-2 bg-red-500/10 border-b border-red-500/20 text-xs text-red-600 dark:text-red-400 font-retro-mono">
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
+                        </span>
+                        <span className="font-bold tracking-wider">LISTENING... SPEAK NOW</span>
+                        <span className="text-neutral-500 text-[11px] hidden sm:inline">
+                          (Speak your travel instructions clearly)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 h-3.5">
+                        <span className="w-1 h-2 bg-red-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="w-1 h-4 bg-red-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="w-1 h-2.5 bg-red-500 rounded-full animate-bounce"></span>
+                      </div>
+                    </div>
+                  )}
+
                   <textarea
                     value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
+                    onChange={(e) => {
+                      if (isListening && recognitionRef.current) {
+                        try { recognitionRef.current.stop(); } catch {}
+                        setIsListening(false);
+                      }
+                      setInputText(e.target.value);
+                    }}
                     placeholder="e.g. Travel to Bangalore next Friday, draft the details..."
                     className="w-full bg-transparent border-0 p-4 text-base font-body focus:outline-none min-h-24 placeholder:text-neutral-400 resize-none"
                     style={{ color: '#374151' }}
                     disabled={isLoading || isConfirming}
                   />
+
+                  {/* Speech Error Banner */}
+                  {speechError && (
+                    <div className="px-3.5 py-2 bg-amber-500/10 border-t border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-center justify-between font-retro-mono">
+                      <span className="flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                        <span>{speechError}</span>
+                      </span>
+                      <button 
+                        type="button" 
+                        onClick={() => setSpeechError('')} 
+                        className="text-amber-600 hover:text-amber-800 dark:hover:text-amber-200 font-bold ml-2 cursor-pointer text-xs"
+                        aria-label="Dismiss message"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                   
-                  {/* Submit Button */}
-                  <div className="flex justify-end p-2 bg-transparent">
+                  {/* Action Toolbar */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-transparent border-t border-neutral-300/30">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={toggleVoiceInput}
+                        disabled={isLoading || isConfirming}
+                        title={
+                          !speechSupported
+                            ? "Voice recognition is not supported in this browser (Chrome, Edge, or Safari recommended)"
+                            : isListening
+                            ? "Click to stop voice typing"
+                            : "Click to dictate using your voice"
+                        }
+                        className={`btn-vintage flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-retro-mono tracking-wider transition-all duration-200 cursor-pointer ${
+                          isListening
+                            ? "!bg-red-500 !text-white shadow-lg ring-2 ring-red-400/60"
+                            : !speechSupported
+                            ? "opacity-50 cursor-not-allowed text-neutral-400"
+                            : "text-neutral-700 hover:text-(--color-terracotta)"
+                        }`}
+                      >
+                        {isListening ? (
+                          <>
+                            <MicOff className="w-3.5 h-3.5 animate-pulse" />
+                            <span>STOP DICTATING</span>
+                          </>
+                        ) : (
+                          <>
+                            <Mic className="w-3.5 h-3.5 text-(--color-terracotta)" />
+                            <span>VOICE TYPE</span>
+                          </>
+                        )}
+                      </button>
+
+                      {inputText && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isListening && recognitionRef.current) {
+                              try { recognitionRef.current.stop(); } catch {}
+                              setIsListening(false);
+                            }
+                            setInputText('');
+                          }}
+                          disabled={isLoading || isConfirming}
+                          className="text-[11px] font-retro-mono text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 px-2 py-1 rounded transition-colors cursor-pointer"
+                          title="Clear text box"
+                        >
+                          CLEAR
+                        </button>
+                      )}
+                    </div>
+
                     <button
                       type="submit"
                       disabled={isLoading || isConfirming || !inputText.trim()}
@@ -1247,7 +1581,28 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                )}                {/* Finance Agent Card */}
+                )}
+
+                {/* Node 01.6 Live Geopath & Route Visualizer */}
+                {outputs.travel && (
+                  <div className="card-vintage p-5 col-span-1 md:col-span-2">
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-retro-mono font-bold text-(--color-terracotta) uppercase tracking-wider">
+                        NODE 01.6 // INTERACTIVE JOURNEY MAP
+                      </span>
+                      <span className="text-[10px] font-retro-mono font-bold px-2 py-0.5 rounded-full uppercase bg-emerald-500 text-white shadow-sm">
+                        GPS CONNECTED
+                      </span>
+                    </div>
+                    <JourneyMap 
+                      city={outputs.travel.city} 
+                      hotel={getSelectedHotel()} 
+                      spots={selectedSpots.length > 0 ? selectedSpots : getTouristSpots(outputs.travel.city).slice(0, 4)} 
+                    />
+                  </div>
+                )}
+
+                {/* Finance Agent Card */}
                 <div className="card-vintage p-5 flex flex-col justify-between min-h-55">
                   <div>
                     <div className="flex justify-between items-start mb-3">
@@ -1622,7 +1977,8 @@ export default function App() {
                                 >
                                   <div className="flex justify-between items-start font-bold text-neutral-700 mb-1">
                                     <span className="flex items-center gap-1.5 flex-wrap min-w-0 mr-2">
-                                      <span className="truncate">✈️ {flight.airline}</span>
+                                      <Plane className="w-3.5 h-3.5 text-sky-500 shrink-0 inline-block mr-0.5" />
+                                      <span className="truncate">{flight.airline}</span>
                                       {isSelected && (
                                         <span className="text-[9px] uppercase font-bold tracking-wider text-(--color-terracotta) bg-(--color-terracotta)/10 px-1.5 py-0.5 rounded-md animate-fade-in shadow-inner shrink-0">
                                           Selected
@@ -1645,7 +2001,10 @@ export default function App() {
                                     {flight.departure} → {flight.arrival} ({flight.duration}h) • {flight.stops} stop(s)
                                   </div>
                                   <div className="flex justify-between items-center text-xs mt-3.5 text-neutral-450 pt-2 border-t border-white/40">
-                                    <span>Rating: {flight.rating}⭐ • Score: {flight.score}</span>
+                                    <span className="flex items-center gap-1.5">
+                                      <span className="text-amber-500 font-bold">★ {flight.rating}</span>
+                                      <span>• Score: {flight.score}</span>
+                                    </span>
                                     <a 
                                       href={searchUrl} 
                                       target="_blank" 
@@ -1694,7 +2053,7 @@ export default function App() {
                           {outputs.hotels.reason}
                         </div>
                       ) : (
-                        <div className="space-y-2 max-h-60 overflow-y-auto pr-3 pt-3 mt-2 border-t border-white/50">
+                        <div className="space-y-3 pt-3 mt-2 border-t border-white/50">
                           {(() => {
                             const legs = outputs.travel?.legs;
                             let list = outputs.hotels;
@@ -1730,7 +2089,8 @@ export default function App() {
                                 >
                                   <div className="flex justify-between items-start font-bold text-neutral-700 mb-1">
                                     <span className="flex items-center gap-1.5 flex-wrap min-w-0 mr-2">
-                                      <span className="truncate">🏢 {hotel.name}</span>
+                                      <Building className="w-3.5 h-3.5 text-amber-500 shrink-0 inline-block mr-0.5" />
+                                      <span className="truncate">{hotel.name}</span>
                                       {isSelected && (
                                         <span className="text-[9px] uppercase font-bold tracking-wider text-(--color-terracotta) bg-(--color-terracotta)/10 px-1.5 py-0.5 rounded-md animate-fade-in shadow-inner shrink-0">
                                           Selected
@@ -1748,7 +2108,10 @@ export default function App() {
                                     ))}
                                   </div>
                                   <div className="flex justify-between items-center text-xs text-neutral-400 border-t border-white/40 pt-2 mt-3.5">
-                                    <span>Rating: {hotel.rating}⭐ • Score: {hotel.overall_score}</span>
+                                    <span className="flex items-center gap-1.5">
+                                      <span className="text-amber-500 font-bold">★ {hotel.rating}</span>
+                                      <span>• Score: {hotel.overall_score}</span>
+                                    </span>
                                     <a 
                                       href={searchUrl} 
                                       target="_blank" 
@@ -2116,6 +2479,16 @@ export default function App() {
                               </div>
                             </div>
                           )}
+
+                          {/* Autonomous Polite Reschedule Drafter Trigger */}
+                          <button
+                            type="button"
+                            onClick={() => setIsConflictModalOpen(true)}
+                            className="btn-vintage w-full mt-2 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-retro-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/25 cursor-pointer shadow-xs transition-all"
+                            title="Negotiate & reschedule overlapping meeting"
+                          >
+                            <span>✉️ DRAFT POLITE RESCHEDULE REQUEST</span>
+                          </button>
                         </div>
                       )
                     ) : (
@@ -2375,6 +2748,15 @@ export default function App() {
 
       {activeTab === 'pipeline' && (
         <div className="lg:col-span-3 space-y-8 animate-fade-in">
+          {/* Agent War Room Multi-Agent Deliberation */}
+          {agentState && (
+            <AgentWarRoom 
+              agentState={agentState} 
+              selectedFlight={getSelectedFlight()} 
+              selectedHotel={getSelectedHotel()} 
+            />
+          )}
+
           <div className="card-vintage p-6 relative overflow-hidden">
             <h3 className="font-title font-bold text-xl text-neutral-800 mb-4 uppercase tracking-wider">
               Active Agent Pipeline Flow
@@ -2496,7 +2878,51 @@ export default function App() {
         </div>
       )}
 
+      {activeTab === 'ledger' && (
+        <div className="lg:col-span-3 space-y-8 animate-fade-in">
+          <ExpenseTracker financeInfo={outputs.finance} />
+        </div>
+      )}
+
+      {activeTab === 'emergency' && (
+        <div className="lg:col-span-3 space-y-8 animate-fade-in">
+          <EmergencyKitCard city={outputs.travel?.city || 'London'} />
+        </div>
+      )}
+
     </div>
+
+      {/* Executive Digital Travel Pass Modal */}
+      <DigitalPassModal 
+        isOpen={isPassModalOpen}
+        onClose={() => setIsPassModalOpen(false)}
+        agentState={agentState}
+        selectedFlight={getSelectedFlight()}
+        selectedHotel={getSelectedHotel()}
+      />
+
+      {/* Calendar Conflict Polite Rescheduler Modal */}
+      <ConflictReschedulerModal
+        isOpen={isConflictModalOpen}
+        onClose={() => setIsConflictModalOpen(false)}
+        destination={outputs.travel?.city || 'London'}
+        conflictEvent={outputs.calendar_conflicts?.conflicts ? { summary: outputs.calendar_conflicts.conflicts[0] } : null}
+      />
+
+      {/* Messenger Bot & Telemetry Modal */}
+      <MessengerDispatchModal
+        isOpen={isMessengerModalOpen}
+        onClose={() => setIsMessengerModalOpen(false)}
+        tripData={{
+          city: outputs.travel?.city || 'London',
+          dates: outputs.travel?.dates || 'Next Week',
+          weather: outputs.travel?.weather || 'Intermittent Rain, 14°C',
+          packing: outputs.travel?.packing || 'Trench coat, umbrella, formal layers',
+          hotel: getSelectedHotel(),
+          flight: getSelectedFlight(),
+          total_budget: outputs.finance?.total ? `INR ${outputs.finance.total}` : 'INR 45,000'
+        }}
+      />
 
       {/* PROFILE / MEMORY SETTINGS DRAWER OVERLAY */}
       {isMemoryOpen && (

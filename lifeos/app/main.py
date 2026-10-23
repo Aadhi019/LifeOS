@@ -1,8 +1,19 @@
 import os
+import sys
+
+# Ensure parent directory is in sys.path so 'lifeos' package can always be resolved
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.abspath(os.path.join(current_dir, "..", ".."))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+workspace_dir = os.path.abspath(os.path.join(current_dir, ".."))
+if workspace_dir not in sys.path:
+    sys.path.insert(0, workspace_dir)
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from lifeos.app.agents.graph import get_agent_graph, get_content_text
@@ -159,6 +170,262 @@ async def confirm_endpoint(request: ConfirmRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Action execution failed: {str(e)}")
+
+# Destination Emergency & Survival Kit Database
+CITY_EMERGENCY_DATA = {
+    "london": {
+        "city": "London",
+        "country": "United Kingdom",
+        "currency": "GBP",
+        "exchange_rate": "1 GBP ≈ 106.50 INR",
+        "police": "999 (Emergency) / 101 (Non-Emergency)",
+        "medical": "999 / NHS 111",
+        "hospital": "St Thomas' Hospital (Westminster Bridge Rd, SE1 7EH)",
+        "embassy": "High Commission of India (India House, Aldwych, WC2B 4NA)",
+        "embassy_phone": "+44 20 7836 9147",
+        "transit_advice": "Tap-in/Tap-out with Contactless debit/credit or Oyster card across the London Underground (Tube) and buses. Cash is not accepted on buses.",
+        "plug_type": "Type G (230V, 50Hz, 3 rectangular pins)"
+    },
+    "paris": {
+        "city": "Paris",
+        "country": "France",
+        "currency": "EUR",
+        "exchange_rate": "1 EUR ≈ 91.20 INR",
+        "police": "17 (Police) / 112 (European Emergency)",
+        "medical": "15 (SAMU Medical Dispatch)",
+        "hospital": "Hôpital Hôtel-Dieu (1 Parvis Notre-Dame, 75004)",
+        "embassy": "Embassy of India (13-15 Rue Alfred Dehodencq, 75016)",
+        "embassy_phone": "+33 1 40 50 70 70",
+        "transit_advice": "Use the Navigo Easy card or Île-de-France Mobilités mobile app for Métro and RER trains.",
+        "plug_type": "Type C & E (230V, 50Hz)"
+    },
+    "bangalore": {
+        "city": "Bangalore",
+        "country": "India",
+        "currency": "INR",
+        "exchange_rate": "Local Currency (INR)",
+        "police": "112 / 100",
+        "medical": "108 / 102",
+        "hospital": "Manipal Hospital (Old Airport Road) / Apollo Hospital",
+        "embassy": "Local Domestic Hub / FRRO Indiranagar",
+        "embassy_phone": "+91 80 2294 2188",
+        "transit_advice": "Use Namma Metro smart card or QR tickets on WhatsApp. Uber and Ola available 24/7.",
+        "plug_type": "Type C, D, M (230V, 50Hz)"
+    },
+    "mumbai": {
+        "city": "Mumbai",
+        "country": "India",
+        "currency": "INR",
+        "exchange_rate": "Local Currency (INR)",
+        "police": "100 / 112",
+        "medical": "108",
+        "hospital": "Lilavati Hospital / Bombay Hospital",
+        "embassy": "Local Domestic Commercial Capital",
+        "embassy_phone": "+91 22 2262 0821",
+        "transit_advice": "Local trains and Mumbai Metro line 1, 2A, 7. Metred black-and-yellow cabs require exact cash or UPI.",
+        "plug_type": "Type C, D, M (230V, 50Hz)"
+    },
+    "tokyo": {
+        "city": "Tokyo",
+        "country": "Japan",
+        "currency": "JPY",
+        "exchange_rate": "100 JPY ≈ 56.50 INR",
+        "police": "110",
+        "medical": "119",
+        "hospital": "St. Luke's International Hospital (Chuo City)",
+        "embassy": "Embassy of India (2 Chome-2-11 Kudanminami, Chiyoda)",
+        "embassy_phone": "+81 3 3262 2391",
+        "transit_advice": "Load digital Suica or Pasmo on Apple/Google Wallet for all JR lines and Tokyo Metro.",
+        "plug_type": "Type A & B (100V, 50/60Hz, 2 flat pins)"
+    },
+    "new york": {
+        "city": "New York",
+        "country": "United States",
+        "currency": "USD",
+        "exchange_rate": "1 USD ≈ 86.80 INR",
+        "police": "911",
+        "medical": "911",
+        "hospital": "NewYork-Presbyterian / Weill Cornell Medical Center",
+        "embassy": "Consulate General of India (3 E 64th St, NY 10065)",
+        "embassy_phone": "+1 212 774 0600",
+        "transit_advice": "OMNY contactless tap-and-go at all NYC subway turnstiles and MTA buses.",
+        "plug_type": "Type A & B (120V, 60Hz)"
+    }
+}
+
+class RescheduleRequest(BaseModel):
+    colleague_name: str
+    colleague_email: str
+    original_event: str
+    trip_destination: str
+    proposed_slots: List[str]
+    custom_note: str = ""
+
+@app.post("/api/reschedule-conflict")
+async def reschedule_conflict_endpoint(request: RescheduleRequest):
+    try:
+        slots_text = "\n".join([f"  • {slot}" for slot in request.proposed_slots]) if request.proposed_slots else "  • Tomorrow at 11:00 AM\n  • Early next week"
+        
+        subject = f"Reschedule Request: {request.original_event}"
+        body = (
+            f"Dear {request.colleague_name},\n\n"
+            f"I hope this message finds you well.\n\n"
+            f"Due to confirmed business travel commitments to {request.trip_destination}, "
+            f"I will be traveling and unavailable during our scheduled session for '{request.original_event}'.\n\n"
+            f"To ensure we still connect without disruption, would any of the following alternate windows work for you?\n"
+            f"{slots_text}\n\n"
+            f"{request.custom_note}\n\n"
+            f"Please let me know if one of these options suits your calendar, or feel free to propose another convenient time.\n\n"
+            f"Thank you for your understanding.\n\n"
+            f"Sincerely,\n"
+            f"Executive Office | LifeOS Autonomous Assistant"
+        )
+        
+        # Dispatch the reschedule email via send_email
+        send_result = send_email(
+            to=request.colleague_email,
+            subject=subject,
+            body=body
+        )
+        
+        return {
+            "success": True,
+            "subject": subject,
+            "body": body,
+            "status": send_result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send reschedule request: {str(e)}")
+
+@app.get("/api/emergency-kit/{city}")
+async def emergency_kit_endpoint(city: str):
+    key = city.lower().strip()
+    data = CITY_EMERGENCY_DATA.get(key)
+    
+    if not data:
+        # Generic graceful fallback
+        data = {
+            "city": city.title(),
+            "country": "International Travel Hub",
+            "currency": "Foreign Currency",
+            "exchange_rate": "Check live banking rates",
+            "police": "112 / 911 (International Standard)",
+            "medical": "112 / 911",
+            "hospital": f"Central General Hospital in {city.title()}",
+            "embassy": f"Embassy / Consulate Mission in {city.title()}",
+            "embassy_phone": "Refer to Ministry of External Affairs portal",
+            "transit_advice": "Consult local municipal metro and airport express rail counters upon arrival.",
+            "plug_type": "Universal International Travel Adapter Recommended"
+        }
+        
+    return {"success": True, "kit": data}
+
+class ReceiptItem(BaseModel):
+    expense_name: str
+    category: str  # lodging, transit, food, activities
+    amount: float
+    currency: str = "INR"
+
+@app.post("/api/receipt-audit")
+async def receipt_audit_endpoint(item: ReceiptItem):
+    try:
+        # Audit logic: analyze against category guidelines
+        benchmarks = {
+            "lodging": 5000.0,
+            "transit": 2500.0,
+            "food": 2000.0,
+            "activities": 1500.0
+        }
+        ref = benchmarks.get(item.category.lower(), 3000.0)
+        status = "Within Norm" if item.amount <= ref else "High Expenditure Alert"
+        
+        return {
+            "success": True,
+            "item": {
+                "name": item.expense_name,
+                "category": item.category.title(),
+                "amount": item.amount,
+                "currency": item.currency,
+                "audit_status": status,
+                "budget_impact": f"{round((item.amount / ref) * 100, 1)}% of typical category allowance"
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Audit failed: {str(e)}")
+
+# ==========================================
+# TELEGRAM & WHATSAPP STATUS DISPATCH
+# ==========================================
+class TelegramDispatchRequest(BaseModel):
+    bot_token: Optional[str] = None
+    chat_id: Optional[str] = None
+    trip_data: Dict[str, Any]
+    custom_note: Optional[str] = None
+
+class WhatsAppDispatchRequest(BaseModel):
+    trip_data: Dict[str, Any]
+    phone_number: Optional[str] = None
+
+class TelegramTestRequest(BaseModel):
+    bot_token: str
+    chat_id: str
+
+@app.post("/api/dispatch/telegram")
+async def dispatch_telegram_endpoint(request: TelegramDispatchRequest):
+    from lifeos.app.tools.bot_dispatch import send_telegram_message, format_telegram_briefing
+    
+    token = request.bot_token or os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = request.chat_id or os.getenv("TELEGRAM_CHAT_ID")
+    
+    if not token or not chat_id:
+        raise HTTPException(
+            status_code=400, 
+            detail="Telegram Bot Token and Chat ID are required. Configure them in the UI modal or set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in environment."
+        )
+    
+    text = format_telegram_briefing(request.trip_data)
+    if request.custom_note:
+        text += f"\n\n📝 <b>Note:</b> {request.custom_note}"
+        
+    result = send_telegram_message(token, chat_id, text)
+    if not result.get("success"):
+        raise HTTPException(status_code=502, detail=result.get("error", "Telegram dispatch failed"))
+        
+    return {
+        "success": True, 
+        "message": "Executive itinerary successfully pushed to your Telegram device.",
+        "telegram_response": result.get("result")
+    }
+
+@app.post("/api/dispatch/whatsapp")
+async def dispatch_whatsapp_endpoint(request: WhatsAppDispatchRequest):
+    from lifeos.app.tools.bot_dispatch import format_whatsapp_briefing, generate_whatsapp_web_link
+    
+    formatted_text = format_whatsapp_briefing(request.trip_data)
+    wa_url = generate_whatsapp_web_link(formatted_text, request.phone_number)
+    
+    return {
+        "success": True,
+        "wa_link": wa_url,
+        "raw_text": formatted_text,
+        "message": "WhatsApp executive memo generated."
+    }
+
+@app.post("/api/dispatch/test-telegram")
+async def test_telegram_endpoint(request: TelegramTestRequest):
+    from lifeos.app.tools.bot_dispatch import send_telegram_message
+    
+    test_msg = (
+        "🤖 <b>LIFEOS // TELEMETRY CONNECTED</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Status: 🟢 <i>Online and Synchronized</i>\n"
+        "Chief of Staff notifications are linked to this device."
+    )
+    res = send_telegram_message(request.bot_token, request.chat_id, test_msg)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error", "Connection failed"))
+        
+    return {"success": True, "message": "Test handshake confirmed on Telegram!"}
 
 @app.get("/api/health")
 async def health_check():

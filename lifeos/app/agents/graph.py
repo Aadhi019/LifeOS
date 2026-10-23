@@ -412,29 +412,63 @@ def email_agent_node(state: AgentState) -> Dict[str, Any]:
     packing = ", ".join(travel_info.get("packing_list", []))
     
     email_prompt = f"""
-    You are the Email Assistant for LifeOS.
-    Prepare a professional draft email itinerary to summarize the user's travel plans.
-    
+    You are the Executive Travel Concierge for LifeOS.
+    Compose an official, elegant, and formal travel itinerary memorandum.
+
+    STRICT TONE & FORMATTING RULES:
+    1. DO NOT use emojis (no icons like calendar, sun, suitcase, money, etc.).
+    2. DO NOT use markdown symbols like double asterisks (**bold**) or hashes (###). Use plain uppercase headers and clean bullet characters (•) or dashes (-).
+    3. DO NOT sound like a casual AI assistant. Avoid phrases like "Hi,", "Here is your summary:", or "Have a great trip!".
+    4. Salutation: Use "Dear Traveler,".
+    5. Opening paragraph: State clearly that this is the formal travel briefing and logistics summary for the upcoming journey to {city} on {travel_date}.
+    6. Include the following distinct sections with clean capitalization:
+
+       SCHEDULE & CALENDAR COMMITMENTS
+       • Event: {calendar_info.get('summary', 'Trip to ' + city)}
+       • Date: {travel_date}
+       • Allocated Window: {calendar_info.get('start_time')} to {calendar_info.get('end_time')}
+       • Destination: {city}
+
+       METEOROLOGICAL OUTLOOK
+       • Forecast Summary: {weather_desc}
+
+       RECOMMENDED ATTIRE & PACKING REQUIREMENTS
+       (List each packing item on a separate bullet point, e.g. • Item)
+
+       FINANCIAL ALLOCATION & ESTIMATED BUDGET
+       • Accommodation / Lodging: INR {finance_info.get('lodging')}
+       • Local Transit / Transportation: INR {finance_info.get('transit')}
+       • Subsistence & Meals: INR {finance_info.get('food')}
+       • Scheduled Activities & Sightseeing: INR {finance_info.get('activities')}
+       --------------------------------------------------
+       • Total Projected Budget: INR {finance_info.get('total')}
+
+    7. Formal closing:
+       "Should you require adjustments to your travel schedule or further arrangements, please let us know.
+
+Sincerely,
+Executive Travel Operations | LifeOS"
+
     User Intent: {user_intent}
-    
-    Details:
+
+    Travel Details:
     - Destination: {city}
-    - Date: {travel_date}
+    - Scheduled Date: {travel_date}
     - Weather: {weather_desc}
     - Packing list: {packing}
     - Estimated Budget: Lodging: INR {finance_info.get('lodging')}, Transit: INR {finance_info.get('transit')}, Food: INR {finance_info.get('food')}, Activities: INR {finance_info.get('activities')}. Total: INR {finance_info.get('total')}.
     - Calendar event: {calendar_info.get('summary')} from {calendar_info.get('start_time')} to {calendar_info.get('end_time')}
-    
+
     Instructions for JSON fields:
-    1. "to": If the user specified a specific recipient email address in the User Intent above, use that email address. Otherwise, this field MUST be set exactly to "me". DO NOT invent or use placeholder email addresses like "test@example.com" or "user@example.com".
-    2. "subject": Set to "Itinerary Summary: Trip to {city} on {travel_date}"
-    3. "body": Provide a well-structured summary of weather, packing details, estimated finance, and calendar reminder.
-    
+    1. "to": If the user specified a specific recipient email address in the User Intent above, use that email address. Otherwise, set to "me".
+    2. "subject": Set to "Executive Travel Briefing: Trip to {city} ({travel_date})"
+    3. "body": The formal memorandum text following all the strict rules above.
+
     Generate a JSON object containing:
     {{
       "to": "me",
-      "subject": "Itinerary Summary: Trip to {city} on {travel_date}",
-      "body": "Provide a well-structured summary of weather, packing details, estimated finance, and calendar reminder."
+      "subject": "Executive Travel Briefing: Trip to {city} ({travel_date})",
+      "body": "..."
     }}
     """
     

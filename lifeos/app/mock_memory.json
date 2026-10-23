@@ -1,23 +1,12 @@
 {
   "preferred_airline": "Air India",
-  "preferred_hotel_type": "Budget",
+  "preferred_hotel_type": "Family",
   "meal": "Vegetarian",
   "seat": "Window",
   "budget": "25000",
-  "home_city": "Bangalore",
+  "home_city": "Coimbatore",
   "frequently_visited_cities": [
-    "Bangalore",
-    "Mumbai",
-    "Chennai",
-    "Paris",
-    "Leh",
-    "London",
-    "Pune",
-    "Delhi",
-    "Agra",
-    "Goa",
-    "Kodaikanal",
-    "Valparai"
+    "London"
   ],
   "travel_style": "Comfort & Efficiency"
 }
