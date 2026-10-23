@@ -241,26 +241,30 @@ def fetch_real_travel_costs_via_search(city: str) -> List[Dict[str, Any]]:
 def travel_agent_node(state: AgentState) -> Dict[str, Any]:
     """
     Travel & Finance Agent node.
-    Extracts destination/dates, gets weather, suggests packing list, estimates trip costs.
+    Extracts destination/dates, supports multi-leg itineraries, gets weather, suggests packing list, estimates trip costs.
     """
     llm = get_llm()
     user_intent = state.get("user_intent", "")
     today_str = date.today().strftime("%Y-%m-%d")
     day_of_week = date.today().strftime("%A")
     
-    # Step 1: Extract city and date
+    # Step 1: Extract city, date, and multiple legs
     extraction_prompt = f"""
     You are a parsing assistant.
     Today is {today_str} ({day_of_week}).
     Analyze the user request: "{user_intent}"
     Extract:
-    1. The destination city (be precise, e.g., 'Bangalore', 'Paris').
-    2. The start date of travel as YYYY-MM-DD. Map relative terms like 'next Friday', 'tomorrow', 'this weekend' to correct calendar dates relative to {today_str}.
+    1. The primary destination city (be precise, e.g., 'Bangalore', 'Paris').
+    2. The start date of travel as YYYY-MM-DD. Map relative terms like 'next Friday', 'tomorrow', 'this weekend' relative to {today_str}.
+    3. The list of legs if this is a multi-leg or multi-city trip. Each leg should specify the destination city name and start date (YYYY-MM-DD). If it is a single destination, return one leg.
     
     Return ONLY a JSON object:
     {{
       "city": "city_name",
-      "start_date": "YYYY-MM-DD"
+      "start_date": "YYYY-MM-DD",
+      "legs": [
+        {{"city": "city_name", "start_date": "YYYY-MM-DD"}}
+      ]
     }}
     """
     
@@ -269,15 +273,25 @@ def travel_agent_node(state: AgentState) -> Dict[str, Any]:
         details = extract_json(extraction_res.content)
         city = details.get("city", "Bangalore")
         start_date = details.get("start_date", today_str)
+        legs = details.get("legs", [])
     except Exception as e:
         print(f"Error extracting travel details: {e}")
         city = "Bangalore"
         start_date = today_str
+        legs = []
         
-    # Step 2: Fetch weather forecast
-    weather_info = get_weather_forecast(city)
+    if not legs:
+        legs = [{"city": city, "start_date": start_date}]
+        
+    # Step 2: Fetch weather forecast for all legs
+    weather_forecasts = []
+    for leg in legs:
+        leg_city = leg.get("city", "Bangalore")
+        leg_weather = get_weather_forecast(leg_city)
+        weather_forecasts.append(f"Destination: {leg_city}\n{leg_weather}\n")
+    weather_info = "\n\n".join(weather_forecasts)
     
-    # Step 2.5: Fetch real-time travel costs
+    # Step 2.5: Fetch real-time travel costs for primary city
     cost_search_results = fetch_real_travel_costs_via_search(city)
     cost_snippets = []
     for i, res in enumerate(cost_search_results, 1):
@@ -287,8 +301,10 @@ def travel_agent_node(state: AgentState) -> Dict[str, Any]:
     # Step 3: Run Gemini to construct the packing list and estimate finances
     travel_prompt = f"""
     You are the Travel and Finance Planner for LifeOS.
-    The user is traveling to {city} on {start_date}.
-    Here is the weather forecast for {city}:
+    The user is traveling on a trip with these legs:
+    {json.dumps(legs, indent=2)}
+    
+    Here is the weather forecast for these locations:
     {weather_info}
     
     Here are real-time web search results about travel expenses in {city}:
@@ -297,8 +313,8 @@ def travel_agent_node(state: AgentState) -> Dict[str, Any]:
     Today's date is {today_str}.
     
     Based on the destination, dates, weather, and real-time travel cost data above, perform the following:
-    1. Summarize the weather on the travel date.
-    2. Generate a practical packing list of 4-6 items.
+    1. Summarize the weather on the travel date(s) across all destinations.
+    2. Generate a practical packing list of 4-6 items suitable for this itinerary.
     3. Estimate travel costs in INR (Indian Rupee) for: lodging, transit, food, activities.
        Use the search results to formulate a realistic cost estimate for that city (converting USD/EUR/GBP to INR: 1 USD ≈ 85 INR, 1 EUR ≈ 92 INR, 1 GBP ≈ 110 INR if necessary).
     
@@ -306,14 +322,15 @@ def travel_agent_node(state: AgentState) -> Dict[str, Any]:
     {{
       "city": "{city}",
       "dates": "{start_date}",
-      "weather_summary": "Short 1-sentence description",
+      "legs": {json.dumps(legs)},
+      "weather_summary": "Short summary of weather for all destinations",
       "packing_list": ["item1", "item2", "item3"],
       "finance": {{
-        "lodging": "Estimated cost for lodging (integer or clean numeric string, e.g. 3500)",
-        "transit": "Estimated transit cost (integer or clean numeric string, e.g. 2000)",
-        "food": "Estimated food cost (integer or clean numeric string, e.g. 1500)",
-        "activities": "Estimated activities cost (integer or clean numeric string, e.g. 1000)",
-        "total": "Sum of above costs (integer or clean numeric string, e.g. 8000)"
+        "lodging": "Estimated cost for lodging (integer or clean numeric string)",
+        "transit": "Estimated transit cost (integer or clean numeric string)",
+        "food": "Estimated food cost (integer or clean numeric string)",
+        "activities": "Estimated activities cost (integer or clean numeric string)",
+        "total": "Sum of above costs (integer or clean numeric string)"
       }}
     }}
     """
@@ -326,6 +343,7 @@ def travel_agent_node(state: AgentState) -> Dict[str, Any]:
     outputs["travel"] = {
         "city": travel_data.get("city"),
         "dates": travel_data.get("dates"),
+        "legs": travel_data.get("legs", legs),
         "weather_summary": travel_data.get("weather_summary"),
         "packing_list": travel_data.get("packing_list")
     }

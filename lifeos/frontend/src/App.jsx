@@ -260,6 +260,58 @@ export default function App() {
   const [selectedFlightId, setSelectedFlightId] = useState(null);
   const [selectedHotelId, setSelectedHotelId] = useState(null);
 
+  // Theme support
+  const [theme, setTheme] = useState(() => localStorage.getItem('lifeos-theme') || 'light');
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
+    }
+    localStorage.setItem('lifeos-theme', theme);
+  }, [theme]);
+
+  // Interactive local budget target override
+  const [budgetLimit, setBudgetLimit] = useState(25000);
+
+  // Sync budget limit with memory when agentState changes
+  useEffect(() => {
+    if (agentState?.agent_outputs?.memory?.budget) {
+      setBudgetLimit(parseInt(agentState.agent_outputs.memory.budget, 10) || 25000);
+    }
+  }, [agentState]);
+
+  // Drawer modal state for User Memory Profile Editor
+  const [isMemoryOpen, setIsMemoryOpen] = useState(false);
+  const [memoryForm, setMemoryForm] = useState({
+    preferred_airline: 'IndiGo',
+    preferred_hotel_type: 'Business',
+    meal: 'Vegetarian',
+    seat: 'Window',
+    budget: '25000',
+    home_city: 'Bangalore',
+    frequently_visited_cities: [],
+    travel_style: 'Comfort & Efficiency'
+  });
+
+  // Sync memoryForm with agentState memory
+  useEffect(() => {
+    if (agentState?.agent_outputs?.memory) {
+      setMemoryForm({
+        ...agentState.agent_outputs.memory,
+        frequently_visited_cities: agentState.agent_outputs.memory.frequently_visited_cities || []
+      });
+    }
+  }, [agentState]);
+
+  // Track alternate slot selection flag
+  const [selectedAlternateSlot, setSelectedAlternateSlot] = useState(null);
+
+  // Track selected leg index for multi-leg travel tabs
+  const [selectedLegIdx, setSelectedLegIdx] = useState(0);
+
   // Starter prompts
   const starterPrompts = [
     "I'm travelling to Bangalore next Friday",
@@ -290,6 +342,8 @@ export default function App() {
       // Reset selected activities and packing checklist items
       setSelectedSpots([]);
       setPackedItems([]);
+      setSelectedAlternateSlot(null);
+      setSelectedLegIdx(0);
       // Set default selected flight and hotel
       if (response.data.agent_outputs?.flights && response.data.agent_outputs.flights.length > 0) {
         const firstFlight = response.data.agent_outputs.flights[0];
@@ -313,6 +367,110 @@ export default function App() {
       setStatusMessage('Workflow failed');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSelectAlternateSlot = (slotString) => {
+    setSelectedAlternateSlot(slotString);
+    const parts = slotString.split(' to ');
+    if (parts.length === 2) {
+      const [start, end] = parts;
+      if (agentState) {
+        const updatedState = { ...agentState };
+        const currentOutputs = { ...updatedState.agent_outputs };
+        if (currentOutputs.calendar) {
+          currentOutputs.calendar = {
+            ...currentOutputs.calendar,
+            start_time: start,
+            end_time: end
+          };
+        }
+        
+        // Update email body with new calendar details
+        if (currentOutputs.email) {
+          const selectedFlight = getSelectedFlight();
+          const selectedHotel = getSelectedHotel();
+          currentOutputs.email = {
+            ...currentOutputs.email,
+            body: getUpdatedEmailBody(currentOutputs.email.body, selectedFlight, selectedHotel)
+          };
+        }
+        
+        updatedState.agent_outputs = currentOutputs;
+        setAgentState(updatedState);
+      }
+    }
+  };
+
+  const handleAutoOptimize = () => {
+    if (!agentState?.agent_outputs) return;
+    
+    const flights = agentState.agent_outputs.flights || [];
+    const hotels = agentState.agent_outputs.hotels || [];
+    
+    let cheapestFlightObj = null;
+    let flightSig = null;
+    const validFlights = flights.filter(f => !f.skipped && typeof f.price === 'number');
+    if (validFlights.length > 0) {
+      cheapestFlightObj = validFlights.reduce((min, f) => f.price < min.price ? f : min, validFlights[0]);
+      flightSig = cheapestFlightObj.airline + '_' + cheapestFlightObj.price + '_' + cheapestFlightObj.departure;
+      setSelectedFlightId(flightSig);
+    }
+    
+    let cheapestHotelObj = null;
+    let hotelSig = null;
+    const validHotels = hotels.filter(h => !h.skipped && typeof h.price === 'number');
+    if (validHotels.length > 0) {
+      cheapestHotelObj = validHotels.reduce((min, h) => h.price < min.price ? h : min, validHotels[0]);
+      hotelSig = cheapestHotelObj.name + '_' + cheapestHotelObj.price;
+      setSelectedHotelId(hotelSig);
+    }
+    
+    const updatedState = { ...agentState };
+    const currentOutputs = { ...updatedState.agent_outputs };
+    if (currentOutputs.email) {
+      const flightMultipliers = { economy: 1.0, premium_economy: 1.5, business: 2.5, first_class: 4.0 };
+      const multiplier = flightMultipliers[flightClass] || 1.0;
+      
+      const displayedFlight = cheapestFlightObj ? {
+        ...cheapestFlightObj,
+        displayedPrice: Math.round(cheapestFlightObj.price * multiplier)
+      } : getSelectedFlight();
+      
+      const displayedHotel = cheapestHotelObj || getSelectedHotel();
+      
+      currentOutputs.email = {
+        ...currentOutputs.email,
+        body: getUpdatedEmailBody(currentOutputs.email.body, displayedFlight, displayedHotel)
+      };
+    }
+    updatedState.agent_outputs = currentOutputs;
+    setAgentState(updatedState);
+    setStatusMessage('Selection auto-optimized to cheapest options.');
+  };
+
+  const handleSaveMemory = async () => {
+    try {
+      setStatusMessage('Saving profile preferences...');
+      const response = await axios.post(`${API_BASE}/memory`, memoryForm);
+      if (response.data.success) {
+        if (agentState) {
+          const updatedState = { ...agentState };
+          const currentOutputs = { ...updatedState.agent_outputs };
+          currentOutputs.memory = response.data.memory;
+          updatedState.agent_outputs = currentOutputs;
+          setAgentState(updatedState);
+        }
+        
+        setBudgetLimit(parseInt(response.data.memory.budget, 10) || 25000);
+        setIsMemoryOpen(false);
+        setStatusMessage('Preferences saved successfully!');
+      }
+    } catch (err) {
+      console.error(err);
+      const detail = err.response?.data?.detail || err.message;
+      setErrorMessage(`Failed to save memory: ${detail}`);
+      setStatusMessage('Failed to save memory');
     }
   };
 
@@ -377,6 +535,8 @@ export default function App() {
     setSelectedHotelId(null);
     setSelectedSpots([]);
     setPackedItems([]);
+    setSelectedAlternateSlot(null);
+    setSelectedLegIdx(0);
   };
 
   // Determine Agent Status
@@ -426,6 +586,17 @@ export default function App() {
       displayedPrice: Math.round(f.price * multiplier)
     }));
 
+    // Multi-leg filtering
+    const legs = agentState?.agent_outputs?.travel?.legs;
+    if (legs && legs.length > 1 && legs[selectedLegIdx]) {
+      const activeLegCity = legs[selectedLegIdx].city.toLowerCase();
+      list = list.filter(f => 
+        f.destination.toLowerCase() === activeLegCity || 
+        f.destination.toLowerCase().includes(activeLegCity) || 
+        activeLegCity.includes(f.destination.toLowerCase())
+      );
+    }
+
     // Apply filters
     if (flightStopsFilter !== 'all') {
       const maxStops = flightStopsFilter === 'direct' ? 0 : 1;
@@ -474,9 +645,22 @@ export default function App() {
 
   const getSelectedHotel = () => {
     const list = agentState?.agent_outputs?.hotels && !agentState.agent_outputs.hotels.skipped ? agentState.agent_outputs.hotels : [];
-    if (list.length === 0) return null;
-    const match = list.find(h => (h.name + '_' + h.price) === selectedHotelId);
-    return match || list[0];
+    
+    // Multi-leg filtering
+    const legs = agentState?.agent_outputs?.travel?.legs;
+    let filteredList = list;
+    if (legs && legs.length > 1 && legs[selectedLegIdx]) {
+      const activeLegCity = legs[selectedLegIdx].city.toLowerCase();
+      filteredList = list.filter(h => 
+        h.city?.toLowerCase() === activeLegCity || 
+        h.city?.toLowerCase().includes(activeLegCity) || 
+        activeLegCity.includes(h.city?.toLowerCase())
+      );
+    }
+    
+    if (filteredList.length === 0) return null;
+    const match = filteredList.find(h => (h.name + '_' + h.price) === selectedHotelId);
+    return match || filteredList[0];
   };
 
   const getIataCode = (city) => {
@@ -668,18 +852,46 @@ export default function App() {
           </div>
 
           {/* Real-time Status Tracker */}
-          <div className="flex items-center gap-3 py-2 px-4 rounded-full panel-neu-inset font-retro-mono text-xs font-bold">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                isLoading || isConfirming ? 'bg-amber-500' : requiresApproval ? 'bg-red-500' : 'bg-green-500'
-              }`} />
-              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                isLoading || isConfirming ? 'bg-amber-500' : requiresApproval ? 'bg-red-500' : 'bg-green-500'
-              }`} />
-            </span>
-            <span className="uppercase text-neutral-600">
-              {statusMessage}
-            </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-3 py-2 px-4 rounded-full panel-neu-inset font-retro-mono text-xs font-bold">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                  isLoading || isConfirming ? 'bg-amber-500' : requiresApproval ? 'bg-red-500' : 'bg-green-500'
+                }`} />
+                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                  isLoading || isConfirming ? 'bg-amber-500' : requiresApproval ? 'bg-red-500' : 'bg-green-500'
+                }`} />
+              </span>
+              <span className="uppercase text-neutral-600">
+                {statusMessage}
+              </span>
+            </div>
+
+            {/* Theme Toggle */}
+            <button
+              type="button"
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              className="btn-vintage-pill py-2 px-3 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+              title="Toggle Theme"
+            >
+              <span className="text-base select-none">{theme === 'light' ? '🌙' : '☀️'}</span>
+              <span className="hidden sm:inline font-retro-mono font-bold uppercase tracking-wider text-[10px]">
+                {theme === 'light' ? 'Dark' : 'Light'}
+              </span>
+            </button>
+
+            {/* Profile Memory Button */}
+            <button
+              type="button"
+              onClick={() => setIsMemoryOpen(true)}
+              className="btn-vintage-pill py-2 px-3 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+              title="Edit Profile Preferences"
+            >
+              <User className="h-3.5 w-3.5 text-(--color-terracotta)" />
+              <span className="hidden sm:inline font-retro-mono font-bold uppercase tracking-wider text-[10px]">
+                Profile
+              </span>
+            </button>
           </div>
         </header>
 
@@ -882,6 +1094,31 @@ export default function App() {
                   10 ACTIVE NODES
                 </div>
               </div>
+
+              {/* Multi-Leg Travel Tabs Selector */}
+              {outputs.travel?.legs?.length > 1 && (
+                <div className="flex flex-col gap-2 p-4 rounded-2xl panel-neu-inset bg-(--bg-cream) border border-white/40 shadow-[inset_1px_1px_3px_rgba(0,0,0,0.05)]">
+                  <span className="text-[10px] font-retro-mono font-bold uppercase tracking-wider text-neutral-450">
+                    🌍 MULTI-LEG ITINERARY DETECTED • SELECT ACTIVE TRIP STOP:
+                  </span>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {outputs.travel.legs.map((leg, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedLegIdx(idx)}
+                        className={`px-4 py-2 rounded-xl text-xs font-retro-mono font-bold uppercase tracking-wide transition-all border cursor-pointer ${
+                          selectedLegIdx === idx
+                            ? 'bg-(--bg-cream) text-(--color-terracotta) border-(--color-terracotta)/20 shadow-[2px_2px_4px_rgba(0,0,0,0.06),-2px_-2px_4px_#fff]'
+                            : 'bg-transparent text-neutral-500 border-transparent hover:text-neutral-700'
+                        }`}
+                      >
+                        📍 {leg.city} ({leg.start_date})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
@@ -1315,6 +1552,17 @@ export default function App() {
                               displayedPrice: Math.round(f.price * multiplier)
                             }));
 
+                            // Multi-leg filtering
+                            const legs = outputs.travel?.legs;
+                            if (legs && legs.length > 1 && legs[selectedLegIdx]) {
+                              const activeLegCity = legs[selectedLegIdx].city.toLowerCase();
+                              list = list.filter(f => 
+                                f.destination.toLowerCase() === activeLegCity || 
+                                f.destination.toLowerCase().includes(activeLegCity) || 
+                                activeLegCity.includes(f.destination.toLowerCase())
+                              );
+                            }
+
                             // Apply filters
                             if (flightStopsFilter !== 'all') {
                               const maxStops = flightStopsFilter === 'direct' ? 0 : 1;
@@ -1447,55 +1695,74 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="space-y-2 max-h-60 overflow-y-auto pr-3 pt-3 mt-2 border-t border-white/50">
-                          {outputs.hotels.map((hotel, idx) => {
-                            const hotelSig = hotel.name + '_' + hotel.price;
-                            const isSelected = selectedHotelId === hotelSig;
-                            const searchUrl = getMakeMyTripHotelUrl(hotel);
+                          {(() => {
+                            const legs = outputs.travel?.legs;
+                            let list = outputs.hotels;
+                            if (legs && legs.length > 1 && legs[selectedLegIdx]) {
+                              const activeLegCity = legs[selectedLegIdx].city.toLowerCase();
+                              list = list.filter(h => 
+                                h.city?.toLowerCase() === activeLegCity || 
+                                h.city?.toLowerCase().includes(activeLegCity) || 
+                                activeLegCity.includes(h.city?.toLowerCase())
+                              );
+                            }
+                            if (list.length === 0) {
+                              return (
+                                <div className="p-4 text-center text-neutral-400 font-retro-mono italic">
+                                  No hotel options for this leg.
+                                </div>
+                              );
+                            }
+                            return list.map((hotel, idx) => {
+                              const hotelSig = hotel.name + '_' + hotel.price;
+                              const isSelected = selectedHotelId === hotelSig;
+                              const searchUrl = getMakeMyTripHotelUrl(hotel);
 
-                            return (
-                              <div 
-                                key={idx} 
-                                onClick={() => setSelectedHotelId(hotelSig)}
-                                className={`p-3.5 rounded-2xl font-retro-mono text-xs transition-all mb-2 cursor-pointer border ${
-                                  isSelected 
-                                    ? 'panel-neu-inset border-(--color-terracotta)/40 shadow-[inset_2px_2px_5px_rgba(0,0,0,0.08)] bg-(--bg-cream-dark)/30 font-semibold' 
-                                    : 'card-vintage shadow-sm border-transparent hover:bg-neutral-50/20 bg-(--bg-cream)'
-                                }`}
-                              >
-                                <div className="flex justify-between items-start font-bold text-neutral-700 mb-1">
-                                  <span className="flex items-center gap-1.5 flex-wrap min-w-0 mr-2">
-                                    <span className="truncate">🏢 {hotel.name}</span>
-                                    {isSelected && (
-                                      <span className="text-[9px] uppercase font-bold tracking-wider text-(--color-terracotta) bg-(--color-terracotta)/10 px-1.5 py-0.5 rounded-md animate-fade-in shadow-inner shrink-0">
-                                        Selected
-                                      </span>
-                                    )}
-                                  </span>
-                                  <span className="shrink-0 text-right">INR {hotel.price.toLocaleString()}/night</span>
+                              return (
+                                <div 
+                                  key={idx} 
+                                  onClick={() => setSelectedHotelId(hotelSig)}
+                                  className={`p-3.5 rounded-2xl font-retro-mono text-xs transition-all mb-2 cursor-pointer border ${
+                                    isSelected 
+                                      ? 'panel-neu-inset border-(--color-terracotta)/40 shadow-[inset_2px_2px_5px_rgba(0,0,0,0.08)] bg-(--bg-cream-dark)/30 font-semibold' 
+                                      : 'card-vintage shadow-sm border-transparent hover:bg-neutral-50/20 bg-(--bg-cream)'
+                                  }`}
+                                >
+                                  <div className="flex justify-between items-start font-bold text-neutral-700 mb-1">
+                                    <span className="flex items-center gap-1.5 flex-wrap min-w-0 mr-2">
+                                      <span className="truncate">🏢 {hotel.name}</span>
+                                      {isSelected && (
+                                        <span className="text-[9px] uppercase font-bold tracking-wider text-(--color-terracotta) bg-(--color-terracotta)/10 px-1.5 py-0.5 rounded-md animate-fade-in shadow-inner shrink-0">
+                                          Selected
+                                        </span>
+                                      )}
+                                    </span>
+                                    <span className="shrink-0 text-right">INR {hotel.price.toLocaleString()}/night</span>
+                                  </div>
+                                  <div className="text-neutral-500 text-xs mt-1">
+                                    Category: {hotel.category} • Dist: {hotel.distance}km • Safety: {hotel.safety_score}/100
+                                  </div>
+                                  <div className="flex flex-wrap gap-1 mt-1.5">
+                                    {hotel.amenities?.map((am, i) => (
+                                      <span key={i} className="text-[10px] px-2 py-0.5 bg-(--bg-cream) rounded-full shadow-sm text-neutral-600">{am}</span>
+                                    ))}
+                                  </div>
+                                  <div className="flex justify-between items-center text-xs text-neutral-400 border-t border-white/40 pt-2 mt-3.5">
+                                    <span>Rating: {hotel.rating}⭐ • Score: {hotel.overall_score}</span>
+                                    <a 
+                                      href={searchUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-(--color-terracotta) hover:underline font-bold text-[10px] uppercase flex items-center gap-0.5"
+                                    >
+                                      Book on MakeMyTrip ↗
+                                    </a>
+                                  </div>
                                 </div>
-                                <div className="text-neutral-500 text-xs mt-1">
-                                  Category: {hotel.category} • Dist: {hotel.distance}km • Safety: {hotel.safety_score}/100
-                                </div>
-                                <div className="flex flex-wrap gap-1 mt-1.5">
-                                  {hotel.amenities?.map((am, i) => (
-                                    <span key={i} className="text-[10px] px-2 py-0.5 bg-(--bg-cream) rounded-full shadow-sm text-neutral-600">{am}</span>
-                                  ))}
-                                </div>
-                                <div className="flex justify-between items-center text-xs text-neutral-400 border-t border-white/40 pt-2 mt-3.5">
-                                  <span>Rating: {hotel.rating}⭐ • Score: {hotel.overall_score}</span>
-                                  <a 
-                                    href={searchUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-(--color-terracotta) hover:underline font-bold text-[10px] uppercase flex items-center gap-0.5"
-                                  >
-                                    Book on MakeMyTrip ↗
-                                  </a>
-                                </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            });
+                          })()}
                         </div>
                       )
                     ) : (
@@ -1541,7 +1808,6 @@ export default function App() {
                         </div>
 
                         {(() => {
-                          const budgetLimit = agentState?.agent_outputs?.memory?.budget || 25000;
                           const flightObj = getSelectedFlight();
                           const hotelObj = getSelectedHotel();
                           
@@ -1565,70 +1831,100 @@ export default function App() {
                           const textColor = percent > 100 ? 'text-red-600' : percent > 85 ? 'text-amber-600' : 'text-emerald-600';
 
                           return (
-                            <div className="panel-neu-inset bg-(--bg-cream) p-4 rounded-2xl space-y-4 shadow-[inset_1px_1px_3px_rgba(0,0,0,0.05)] border border-white/40">
-                              <div className="flex items-center gap-4">
-                                {/* SVG Donut Chart */}
-                                <div className="relative h-16 w-16 shrink-0">
-                                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
-                                    <circle cx="40" cy="40" r={radius} stroke="#e5e7eb" strokeWidth="6" fill="transparent" />
-                                    <circle 
-                                      cx="40" 
-                                      cy="40" 
-                                      r={radius} 
-                                      className={`transition-all duration-500 ${gaugeColor}`} 
-                                      strokeWidth="6" 
-                                      strokeDasharray={circumference} 
-                                      strokeDashoffset={strokeDashoffset} 
-                                      strokeLinecap="round" 
-                                      fill="transparent" 
-                                    />
-                                  </svg>
-                                  <div className="absolute inset-0 flex flex-col items-center justify-center font-retro-mono text-center">
-                                    <span className={`text-[11px] font-bold ${textColor}`}>{percent}%</span>
-                                    <span className="text-[6px] text-neutral-450 uppercase font-bold tracking-wide">Used</span>
+                            <div className="space-y-4">
+                              <div className="panel-neu-inset bg-(--bg-cream) p-4 rounded-2xl space-y-4 shadow-[inset_1px_1px_3px_rgba(0,0,0,0.05)] border border-white/40">
+                                <div className="flex items-center gap-4">
+                                  {/* SVG Donut Chart */}
+                                  <div className="relative h-16 w-16 shrink-0">
+                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
+                                      <circle cx="40" cy="40" r={radius} stroke="#e5e7eb" strokeWidth="6" fill="transparent" />
+                                      <circle 
+                                        cx="40" 
+                                        cy="40" 
+                                        r={radius} 
+                                        className={`transition-all duration-500 ${gaugeColor}`} 
+                                        strokeWidth="6" 
+                                        strokeDasharray={circumference} 
+                                        strokeDashoffset={strokeDashoffset} 
+                                        strokeLinecap="round" 
+                                        fill="transparent" 
+                                      />
+                                    </svg>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center font-retro-mono text-center">
+                                      <span className={`text-[11px] font-bold ${textColor}`}>{percent}%</span>
+                                      <span className="text-[6px] text-neutral-450 uppercase font-bold tracking-wide">Used</span>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Quick budget stats */}
+                                  <div className="flex-1 text-xs space-y-1 font-retro-mono">
+                                    <div className="flex justify-between">
+                                      <span className="text-neutral-450 uppercase text-[9px]">TOTAL BUDGET:</span>
+                                      <span className="font-bold text-neutral-700">INR {budgetLimit.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-neutral-450 uppercase text-[9px]">SELECTED COST:</span>
+                                      <span className={`font-bold ${textColor}`}>INR {totalSelectedCost.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[9px] pt-1.5 border-t border-dashed border-neutral-350 mt-1">
+                                      {percent > 100 ? (
+                                        <span className="text-red-500 font-bold uppercase tracking-wide animate-pulse">⚠️ OVER BUDGET LIMIT</span>
+                                      ) : (
+                                        <span className="text-emerald-600 font-bold uppercase tracking-wide">✓ WITHIN BUDGET LIMIT</span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                                 
-                                {/* Quick budget stats */}
-                                <div className="flex-1 text-xs space-y-1 font-retro-mono">
-                                  <div className="flex justify-between">
-                                    <span className="text-neutral-450 uppercase text-[9px]">TOTAL BUDGET:</span>
-                                    <span className="font-bold text-neutral-700">INR {budgetLimit.toLocaleString()}</span>
+                                {/* Cost allocation breakdown */}
+                                <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[9px] font-retro-mono pt-2 border-t border-white/50">
+                                  <div className="flex items-center gap-1.5 text-neutral-600 min-w-0">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-(--color-terracotta) shrink-0"></span>
+                                    <span className="truncate">Flights: INR {flightCost.toLocaleString()}</span>
                                   </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-neutral-450 uppercase text-[9px]">SELECTED COST:</span>
-                                    <span className={`font-bold ${textColor}`}>INR {totalSelectedCost.toLocaleString()}</span>
+                                  <div className="flex items-center gap-1.5 text-neutral-600 min-w-0">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-(--color-olive) shrink-0"></span>
+                                    <span className="truncate">Lodging: INR {hotelCost.toLocaleString()}</span>
                                   </div>
-                                  <div className="flex justify-between items-center text-[9px] pt-1.5 border-t border-dashed border-neutral-350 mt-1">
-                                    {percent > 100 ? (
-                                      <span className="text-red-500 font-bold uppercase tracking-wide animate-pulse">⚠️ OVER BUDGET LIMIT</span>
-                                    ) : (
-                                      <span className="text-emerald-600 font-bold uppercase tracking-wide">✓ WITHIN BUDGET LIMIT</span>
-                                    )}
+                                  <div className="flex items-center gap-1.5 text-neutral-600 min-w-0 col-span-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
+                                    <span className="truncate">Activities: INR {activityCost.toLocaleString()} ({selectedSpots.length} spots)</span>
                                   </div>
+                                  {transitCost > 0 && (
+                                    <div className="flex items-center gap-1.5 text-neutral-600 min-w-0 col-span-2">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                                      <span className="truncate">Ground Transit: INR {transitCost.toLocaleString()}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                              
-                              {/* Cost allocation breakdown */}
-                              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[9px] font-retro-mono pt-2 border-t border-white/50">
-                                <div className="flex items-center gap-1.5 text-neutral-600 min-w-0">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-(--color-terracotta) shrink-0"></span>
-                                  <span className="truncate">Flights: INR {flightCost.toLocaleString()}</span>
+
+                              {/* Target range slider widget */}
+                              <div className="panel-neu-inset bg-(--bg-cream) p-3 rounded-2xl space-y-2 border border-white/40 shadow-[inset_1px_1px_3px_rgba(0,0,0,0.05)]">
+                                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wide text-neutral-500">
+                                  <span>Adjust Budget Target:</span>
+                                  <span className="text-(--color-terracotta) font-retro-mono font-bold">INR {budgetLimit.toLocaleString()}</span>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-neutral-600 min-w-0">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-(--color-olive) shrink-0"></span>
-                                  <span className="truncate">Lodging: INR {hotelCost.toLocaleString()}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 text-neutral-600 min-w-0 col-span-2">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
-                                  <span className="truncate">Activities: INR {activityCost.toLocaleString()} ({selectedSpots.length} spots)</span>
-                                </div>
-                                {transitCost > 0 && (
-                                  <div className="flex items-center gap-1.5 text-neutral-600 min-w-0 col-span-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
-                                    <span className="truncate">Ground Transit: INR {transitCost.toLocaleString()}</span>
-                                  </div>
-                                )}
+                                <input 
+                                  type="range"
+                                  min="5000"
+                                  max="100000"
+                                  step="1000"
+                                  value={budgetLimit}
+                                  onChange={(e) => setBudgetLimit(parseInt(e.target.value, 10))}
+                                  className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-(--color-terracotta) slider-neu-track"
+                                />
+                              </div>
+
+                              {/* Auto-optimize helper button */}
+                              <div className="flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={handleAutoOptimize}
+                                  className="btn-vintage-pill text-[10px] py-1 px-3 flex items-center gap-1 font-retro-mono font-bold uppercase text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all cursor-pointer shadow-[2px_2px_4px_var(--shadow-dark)]"
+                                >
+                                  <span>✨ Auto-Optimize Booking</span>
+                                </button>
                               </div>
                             </div>
                           );
@@ -1783,7 +2079,7 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="space-y-2.5 font-retro-mono text-xs pt-3 mt-2 border-t border-white/50">
-                          {outputs.calendar_conflicts.hasConflict ? (
+                          {outputs.calendar_conflicts.hasConflict && !selectedAlternateSlot ? (
                             <div className="bg-red-50/80 rounded-2xl p-3 text-red-900 space-y-1.5 border border-red-200/50 shadow-sm">
                               <span className="font-bold block text-[9px] uppercase tracking-wider">CONFLICT DETECTED:</span>
                               <ul className="list-disc pl-4 space-y-0.5">
@@ -1793,18 +2089,30 @@ export default function App() {
                           ) : (
                             <div className="bg-green-50/80 rounded-2xl p-3 text-green-900 text-xs font-bold flex items-center gap-1.5 border border-green-200/50 shadow-sm">
                               <span>✔</span>
-                              <span>No scheduling conflicts detected. Slots clear.</span>
+                              <span>{selectedAlternateSlot ? "Conflict resolved manually via slot override." : "No scheduling conflicts detected. Slots clear."}</span>
                             </div>
                           )}
                           {outputs.calendar_conflicts.suggestedSlots?.length > 0 && (
                             <div>
                               <span className="font-bold text-neutral-450 block uppercase text-[10px] mb-1.5">ALTERNATES SUGGESTED:</span>
                               <div className="space-y-1.5">
-                                {outputs.calendar_conflicts.suggestedSlots.map((slot, i) => (
-                                  <div key={i} className="p-2 bg-(--bg-cream) rounded-xl shadow-sm font-bold text-neutral-600">
-                                    {slot}
-                                  </div>
-                                ))}
+                                {outputs.calendar_conflicts.suggestedSlots.map((slot, i) => {
+                                  const isSelectedSlot = selectedAlternateSlot === slot;
+                                  return (
+                                    <button
+                                      key={i}
+                                      type="button"
+                                      onClick={() => handleSelectAlternateSlot(slot)}
+                                      className={`w-full text-left p-2.5 rounded-xl transition-all cursor-pointer border text-xs font-bold ${
+                                        isSelectedSlot
+                                          ? 'panel-neu-inset border-green-500/40 bg-green-500/10 text-neutral-850 dark:text-white'
+                                          : 'bg-(--bg-cream) border-transparent hover:bg-neutral-50/15 text-neutral-650'
+                                      }`}
+                                    >
+                                      {isSelectedSlot ? '✅ ' : '⏰ '} {slot}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -2189,6 +2497,136 @@ export default function App() {
       )}
 
     </div>
+
+      {/* PROFILE / MEMORY SETTINGS DRAWER OVERLAY */}
+      {isMemoryOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs animate-fade-in">
+          <div className="absolute inset-0" onClick={() => setIsMemoryOpen(false)} />
+          <div className="relative w-full max-w-md h-full bg-(--bg-cream) shadow-[-10px_0_30px_rgba(0,0,0,0.15)] p-6 md:p-8 flex flex-col justify-between overflow-y-auto animate-slide-in">
+            <div>
+              <div className="flex justify-between items-center mb-6 pb-3 border-vintage-b">
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-(--color-terracotta)" />
+                  <h3 className="font-title font-bold text-xl text-neutral-800">Memory Preferences</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMemoryOpen(false)}
+                  className="btn-vintage-pill py-1 px-3 text-xs"
+                >
+                  Close
+                </button>
+              </div>
+
+              <form className="space-y-4 font-retro-mono text-xs text-neutral-600">
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-455 uppercase text-[9px]">Home City:</label>
+                  <input
+                    type="text"
+                    value={memoryForm.home_city}
+                    onChange={(e) => setMemoryForm({ ...memoryForm, home_city: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-(--bg-cream) panel-neu-inset focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-455 uppercase text-[9px]">Preferred Airline:</label>
+                  <input
+                    type="text"
+                    value={memoryForm.preferred_airline}
+                    onChange={(e) => setMemoryForm({ ...memoryForm, preferred_airline: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-(--bg-cream) panel-neu-inset focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-455 uppercase text-[9px]">Preferred Hotel Class:</label>
+                  <select
+                    value={memoryForm.preferred_hotel_type}
+                    onChange={(e) => setMemoryForm({ ...memoryForm, preferred_hotel_type: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-(--bg-cream) panel-neu-inset focus:outline-none"
+                  >
+                    <option value="Budget">Budget</option>
+                    <option value="Business">Business</option>
+                    <option value="Luxury">Luxury</option>
+                    <option value="Family">Family</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="font-bold text-neutral-455 uppercase text-[9px]">Seat Preference:</label>
+                    <input
+                      type="text"
+                      value={memoryForm.seat}
+                      onChange={(e) => setMemoryForm({ ...memoryForm, seat: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-(--bg-cream) panel-neu-inset focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-neutral-455 uppercase text-[9px]">Meal Preference:</label>
+                    <input
+                      type="text"
+                      value={memoryForm.meal}
+                      onChange={(e) => setMemoryForm({ ...memoryForm, meal: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-(--bg-cream) panel-neu-inset focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-455 uppercase text-[9px]">Target Budget limit (INR):</label>
+                  <input
+                    type="number"
+                    value={memoryForm.budget}
+                    onChange={(e) => setMemoryForm({ ...memoryForm, budget: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-(--bg-cream) panel-neu-inset focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-455 uppercase text-[9px]">Travel Style / Notes:</label>
+                  <input
+                    type="text"
+                    value={memoryForm.travel_style}
+                    onChange={(e) => setMemoryForm({ ...memoryForm, travel_style: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-(--bg-cream) panel-neu-inset focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-455 uppercase text-[9px]">Frequently Visited Cities:</label>
+                  <div className="panel-neu-inset p-3 rounded-2xl flex flex-wrap gap-1.5 min-h-16 max-h-32 overflow-y-auto bg-(--bg-cream)">
+                    {memoryForm.frequently_visited_cities.map((city, idx) => (
+                      <span key={idx} className="px-2 py-0.5 bg-(--bg-cream) dark:bg-(--bg-cream-dark) rounded-full shadow-sm text-neutral-700 font-bold border border-white/20">
+                        {city}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            <div className="mt-6 pt-4 border-vintage-t flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsMemoryOpen(false)}
+                className="btn-vintage flex-1 justify-center text-center font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveMemory}
+                className="btn-vintage btn-vintage-primary flex-1 justify-center text-center font-bold"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       </div>
     </div>

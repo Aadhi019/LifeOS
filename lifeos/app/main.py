@@ -25,6 +25,17 @@ class ChatRequest(BaseModel):
 class ConfirmRequest(BaseModel):
     state: Dict[str, Any]
 
+class MemoryUpdateRequest(BaseModel):
+    preferred_airline: str
+    preferred_hotel_type: str
+    meal: str
+    seat: str
+    budget: str
+    home_city: str
+    frequently_visited_cities: List[str]
+    travel_style: str
+
+
 def serialize_message(m) -> Dict[str, str]:
     """Helper to convert LangChain messages to serializable dictionaries."""
     m_type = "human"
@@ -81,6 +92,25 @@ async def chat_endpoint(request: ChatRequest):
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Graph execution failed: {str(e)}")
+
+@app.post("/api/memory")
+async def update_memory_endpoint(request: MemoryUpdateRequest):
+    try:
+        from lifeos.app.agents.memory_agent import save_memory_to_file
+        memory_data = {
+            "preferred_airline": request.preferred_airline,
+            "preferred_hotel_type": request.preferred_hotel_type,
+            "meal": request.meal,
+            "seat": request.seat,
+            "budget": request.budget,
+            "home_city": request.home_city,
+            "frequently_visited_cities": request.frequently_visited_cities,
+            "travel_style": request.travel_style
+        }
+        save_memory_to_file(memory_data)
+        return {"success": True, "memory": memory_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save memory: {str(e)}")
 
 @app.post("/api/confirm")
 async def confirm_endpoint(request: ConfirmRequest):

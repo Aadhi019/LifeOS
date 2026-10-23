@@ -49,15 +49,23 @@ def get_google_credentials() -> Any:
 
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
+        refreshed = False
         if creds and creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
                 with open(TOKEN_PATH, 'w') as token:
                     token.write(creds.to_json())
+                refreshed = True
             except Exception as e:
                 print(f"Error refreshing credentials: {e}")
                 creds = None
-        else:
+                if os.path.exists(TOKEN_PATH):
+                    try:
+                        os.remove(TOKEN_PATH)
+                    except Exception:
+                        pass
+        
+        if not refreshed:
             if not os.path.exists(CREDENTIALS_PATH):
                 # No credentials file, fallback to mock mode
                 return None

@@ -16,19 +16,26 @@ The React Compiler is not enabled on this template because of its impact on dev 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
 
 
-run Backend 
+### Run Backend (from root directory `D:\Life OS`)
+
+```powershell
+# Navigate to the root directory if you're not already there
+cd "D:\Life OS"
 
 # 1. Activate the Python virtual environment
 .\venv\Scripts\activate
 
 # 2. Start the Uvicorn server with hot-reload enabled
 python -m uvicorn lifeos.app.main:app --host 127.0.0.1 --port 8000 --reload
+```
 
+### Run Frontend (in a separate terminal)
 
-run Frontend
+```powershell
+# Navigate to the frontend directory from root
+cd "D:\Life OS\lifeos\frontend"
 
-# 1. Navigate to the frontend directory
-cd lifeos/frontend
-
-# 2. Start the Vite development server
+# Start the Vite development server
 npm run dev
+```
+

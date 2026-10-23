@@ -306,3 +306,68 @@ input:checked + .switch-neu-slider:before {
 ::-webkit-scrollbar-thumb:hover {
   background: #b0bac9;
 }
+
+/* Cyberpunk Midnight Dark Theme Overrides */
+.dark {
+  /* Matte Carbon background & soft bevels */
+  --bg-cream: #0f1013;
+  --bg-cream-dark: #16191e;
+  --text-charcoal: #c5d1e0;
+  --border-charcoal: rgba(255, 255, 255, 0.07);
+  
+  /* Neon Accents */
+  --color-terracotta: #ff7b2b; /* Glowing orange */
+  --color-terracotta-hover: #ff914d;
+  --color-olive: #00e676; /* Glowing green */
+  --color-mustard: #ffd54f; /* Glowing yellow */
+  
+  /* Dark Mode Bevel Shadows */
+  --shadow-dark: #07070a;
+  --shadow-light: #1b1e24;
+}
+
+/* Ensure readability of neutral text in dark mode */
+.dark .text-neutral-800,
+.dark .text-neutral-750,
+.dark .text-neutral-700 {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-neutral-600 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-neutral-500 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-neutral-450 {
+  color: #64748b !important;
+}
+
+.dark .text-neutral-400 {
+  color: #475569 !important;
+}
+
+/* Scrollbar adjustment for dark mode */
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--bg-cream-dark);
+  box-shadow: 2px 2px 5px var(--shadow-dark), -2px -2px 5px var(--shadow-light);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3a3f4d;
+}
+
+/* Override input texts in dark mode */
+.dark input, 
+.dark textarea {
+  color: #f1f5f9 !important;
+}
+
+.dark select {
+  color: #f1f5f9 !important;
+  background-color: var(--bg-cream-dark) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+

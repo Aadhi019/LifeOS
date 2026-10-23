@@ -1,5 +1,5 @@
 {
-  "preferred_airline": "Virgin Atlantic",
+  "preferred_airline": "Air India",
   "preferred_hotel_type": "Budget",
   "meal": "Vegetarian",
   "seat": "Window",
@@ -16,7 +16,8 @@
     "Delhi",
     "Agra",
     "Goa",
-    "Kodaikanal"
+    "Kodaikanal",
+    "Valparai"
   ],
   "travel_style": "Comfort & Efficiency"
 }
